@@ -1,675 +1,457 @@
 <!DOCTYPE html>
 <html lang="de">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>3D Gaussian Splat Viewer</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-  <style>
-    * { margin: 0; padding: 0; box-sizing: border-box; }
-    body { font-family: 'Inter', -apple-system, sans-serif; overflow: hidden; }
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Splat Viewer</title>
 
-    #app {
-      width: 100%;
-      height: 100vh;
-      position: relative;
-      overflow: hidden;
-      background: #0a0a0f;
-    }
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
 
-    canvas {
-      width: 100%;
-      height: 100%;
-      display: block;
-    }
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+    "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/",
+    "GaussianSplats3D": "https://unpkg.com/@mkkellogg/gaussian-splats-3d@0.4.6/build/gaussian-splats-3d.module.js"
+  }
+}
+</script>
 
-    /* Loading Overlay */
-    #loading {
-      position: absolute;
-      inset: 0;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      background: #0a0a0f;
-      z-index: 50;
-      transition: opacity 0.5s;
-    }
+<style>
+  :root{
+    --bg:#0b0d0e;
+    --panel:#14181a;
+    --panel-2:#191e20;
+    --border:#262b2e;
+    --text:#e7ebec;
+    --text-dim:#8a9296;
+    --accent:#ff6a2b;
+    --accent-dim:#c9531f;
+    --accent-glow: rgba(255,106,43,0.35);
+    --mono:'IBM Plex Mono', ui-monospace, monospace;
+    --display:'Space Grotesk', sans-serif;
+    --body-font:'Inter', sans-serif;
+  }
 
-    .spinner {
-      width: 48px;
-      height: 48px;
-      border: 3px solid #1a1a2e;
-      border-top-color: #6366f1;
-      border-radius: 50%;
-      animation: spin 1s linear infinite;
-      margin-bottom: 16px;
-    }
+  *{ box-sizing:border-box; }
 
-    @keyframes spin { to { transform: rotate(360deg); } }
+  html,body{
+    margin:0; padding:0; width:100%; height:100%;
+    background:var(--bg); color:var(--text);
+    font-family:var(--body-font);
+    overflow:hidden;
+    -webkit-tap-highlight-color:transparent;
+  }
 
-    /* Top Bar */
-    .top-bar {
-      position: absolute;
-      top: 0;
-      left: 0;
-      right: 0;
-      padding: 16px 24px;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      background: linear-gradient(to bottom, rgba(10,10,15,0.9), transparent);
-      z-index: 10;
-      pointer-events: none;
-    }
+  #viewer-root{
+    position:fixed; inset:0; width:100%; height:100%;
+    background:
+      radial-gradient(circle at 50% 42%, #14181a 0%, #0b0d0e 70%);
+  }
+  #viewer-root canvas{ display:block; outline:none; }
 
-    .logo-area {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-      pointer-events: auto;
-    }
+  /* --- signature element: survey-frame viewfinder brackets --- */
+  .bracket{
+    position:fixed; width:34px; height:34px; pointer-events:none; z-index:20;
+    border-color:var(--accent); opacity:0.85;
+  }
+  .bracket.tl{ top:18px; left:18px; border-top:2px solid; border-left:2px solid; }
+  .bracket.tr{ top:18px; right:18px; border-top:2px solid; border-right:2px solid; }
+  .bracket.bl{ bottom:18px; left:18px; border-bottom:2px solid; border-left:2px solid; }
+  .bracket.br{ bottom:18px; right:18px; border-bottom:2px solid; border-right:2px solid; }
 
-    .logo-icon {
-      width: 32px;
-      height: 32px;
-      background: #6366f1;
-      border-radius: 8px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-weight: 700;
-      color: white;
-      font-size: 12px;
-    }
+  /* --- top HUD --- */
+  #topbar{
+    position:fixed; top:0; left:0; right:0; z-index:15;
+    display:flex; align-items:flex-start; justify-content:space-between;
+    padding:22px 34px 0 34px; pointer-events:none;
+  }
+  .eyebrow{
+    font-family:var(--mono); font-size:11px; letter-spacing:0.14em;
+    color:var(--accent); text-transform:uppercase; margin:0 0 4px 0;
+  }
+  h1{
+    font-family:var(--display); font-weight:600; font-size:20px;
+    margin:0; letter-spacing:0.01em; color:var(--text);
+  }
+  #topbar .sub{
+    font-family:var(--mono); font-size:11px; color:var(--text-dim);
+    margin-top:2px;
+  }
+  #status-readout{
+    font-family:var(--mono); font-size:11px; color:var(--text-dim);
+    text-align:right; line-height:1.7; padding-top:2px;
+  }
+  #status-readout .val{ color:var(--text); }
+  #status-readout .dot{
+    display:inline-block; width:6px; height:6px; border-radius:50%;
+    background:var(--text-dim); margin-right:6px; position:relative; top:-1px;
+  }
+  #status-readout .dot.live{ background:var(--accent); box-shadow:0 0 8px var(--accent-glow); }
 
-    .logo-text {
-      color: white;
-      font-size: 16px;
-      font-weight: 600;
-      letter-spacing: -0.02em;
-    }
+  /* --- empty state / drop zone --- */
+  #empty-state{
+    position:fixed; inset:0; z-index:10;
+    display:flex; align-items:center; justify-content:center;
+    padding:20px;
+  }
+  #empty-state.hidden{ display:none; }
 
-    .top-links {
-      display: flex;
-      gap: 8px;
-      pointer-events: auto;
-    }
+  #drop-card{
+    width:min(480px, 92vw);
+    background:var(--panel);
+    border:1px solid var(--border);
+    border-radius:2px;
+    padding:32px 30px 26px 30px;
+    position:relative;
+  }
+  #drop-card::before{
+    content:""; position:absolute; top:-1px; left:-1px; width:14px; height:14px;
+    border-top:2px solid var(--accent); border-left:2px solid var(--accent);
+  }
+  #drop-card::after{
+    content:""; position:absolute; bottom:-1px; right:-1px; width:14px; height:14px;
+    border-bottom:2px solid var(--accent); border-right:2px solid var(--accent);
+  }
+  #drop-card.dragover{ border-color:var(--accent); background:#181211; }
 
-    .btn-link {
-      padding: 8px 16px;
-      background: rgba(255,255,255,0.08);
-      border: 1px solid rgba(255,255,255,0.1);
-      border-radius: 8px;
-      color: #e5e7eb;
-      text-decoration: none;
-      font-size: 13px;
-      font-weight: 500;
-      transition: all 0.2s;
-      backdrop-filter: blur(10px);
-    }
+  #drop-card .tag{
+    font-family:var(--mono); font-size:10.5px; letter-spacing:0.12em;
+    color:var(--accent); text-transform:uppercase; margin-bottom:10px;
+  }
+  #drop-card h2{
+    font-family:var(--display); font-size:19px; font-weight:600;
+    margin:0 0 10px 0; color:var(--text);
+  }
+  #drop-card p{
+    font-family:var(--body-font); font-size:13.5px; line-height:1.55;
+    color:var(--text-dim); margin:0 0 20px 0;
+  }
+  #drop-card p b{ color:var(--text); font-weight:600; }
 
-    .btn-link:hover {
-      background: rgba(255,255,255,0.15);
-    }
+  .field-row{ display:flex; gap:8px; margin-bottom:10px; }
+  .field-row input[type=text]{
+    flex:1; min-width:0;
+    background:var(--panel-2); border:1px solid var(--border); color:var(--text);
+    font-family:var(--mono); font-size:12.5px; padding:10px 11px; border-radius:2px;
+  }
+  .field-row input[type=text]::placeholder{ color:#5c6367; }
+  .field-row input[type=text]:focus, button:focus-visible, label.filebtn:focus-within{
+    outline:2px solid var(--accent); outline-offset:1px;
+  }
 
-    /* Controls Panel */
-    .controls-panel {
-      position: absolute;
-      top: 80px;
-      left: 24px;
-      width: 280px;
-      background: rgba(15,15,25,0.85);
-      border: 1px solid rgba(255,255,255,0.08);
-      border-radius: 16px;
-      padding: 20px;
-      backdrop-filter: blur(20px);
-      z-index: 10;
-      box-shadow: 0 20px 40px rgba(0,0,0,0.4);
-    }
+  button, label.filebtn{
+    font-family:var(--body-font); font-weight:600; font-size:12.5px;
+    border-radius:2px; border:1px solid var(--border);
+    background:var(--panel-2); color:var(--text);
+    padding:10px 14px; cursor:pointer; white-space:nowrap;
+    transition:border-color .15s ease, color .15s ease;
+    display:inline-flex; align-items:center; gap:6px;
+  }
+  button:hover, label.filebtn:hover{ border-color:var(--accent); color:var(--accent); }
+  button.primary{
+    background:var(--accent); border-color:var(--accent); color:#180c05;
+  }
+  button.primary:hover{ background:#ff7c42; color:#180c05; }
 
-    .panel-title {
-      color: white;
-      font-size: 14px;
-      font-weight: 600;
-      margin: 0 0 16px 0;
-      display: flex;
-      align-items: center;
-      gap: 8px;
-    }
+  input[type=file]{ display:none; }
 
-    .panel-title-dot {
-      width: 8px;
-      height: 8px;
-      border-radius: 50%;
-    }
+  .divider-row{
+    display:flex; align-items:center; gap:10px; margin:16px 0 14px 0;
+    font-family:var(--mono); font-size:10px; color:var(--text-dim);
+    letter-spacing:0.1em; text-transform:uppercase;
+  }
+  .divider-row::before, .divider-row::after{
+    content:""; height:1px; flex:1; background:var(--border);
+  }
 
-    .panel-title-dot.purple { background: #6366f1; }
-    .panel-title-dot.green { background: #10b981; }
+  #formats-note{
+    font-family:var(--mono); font-size:10.5px; color:#5c6367; margin-top:16px; line-height:1.6;
+  }
 
-    .input-group {
-      margin-bottom: 16px;
-    }
+  #error-line{
+    font-family:var(--mono); font-size:11.5px; color:var(--accent);
+    margin-top:12px; display:none;
+  }
+  #error-line.show{ display:block; }
 
-    .input-label {
-      display: block;
-      color: #9ca3af;
-      font-size: 12px;
-      margin-bottom: 8px;
-      font-weight: 500;
-    }
+  /* --- bottom control cluster --- */
+  #bottombar{
+    position:fixed; bottom:0; left:0; right:0; z-index:15;
+    display:flex; align-items:flex-end; justify-content:space-between;
+    padding:0 34px 22px 34px; gap:16px;
+  }
+  #controls{
+    display:flex; gap:8px; flex-wrap:wrap;
+  }
+  #controls button{ padding:9px 13px; font-size:12px; }
+  #controls.hidden{ display:none; }
 
-    .file-btn {
-      width: 100%;
-      padding: 12px;
-      background: rgba(99,102,241,0.15);
-      border: 1px dashed #6366f1;
-      border-radius: 10px;
-      color: #818cf8;
-      font-size: 13px;
-      font-weight: 500;
-      cursor: pointer;
-      transition: all 0.2s;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 8px;
-      font-family: inherit;
-    }
+  #hint{
+    font-family:var(--mono); font-size:10.5px; color:var(--text-dim);
+    text-align:right; line-height:1.6; max-width:280px;
+  }
+  #hint.hidden{ display:none; }
 
-    .file-btn:hover {
-      background: rgba(99,102,241,0.25);
-    }
-
-    .url-row {
-      display: flex;
-      gap: 8px;
-    }
-
-    .url-input {
-      flex: 1;
-      padding: 10px 12px;
-      background: rgba(255,255,255,0.05);
-      border: 1px solid rgba(255,255,255,0.1);
-      border-radius: 8px;
-      color: white;
-      font-size: 13px;
-      outline: none;
-      transition: border-color 0.2s;
-      font-family: inherit;
-    }
-
-    .url-input:focus {
-      border-color: #6366f1;
-    }
-
-    .url-input::placeholder {
-      color: #4b5563;
-    }
-
-    .btn-primary {
-      padding: 10px 16px;
-      background: #6366f1;
-      border: none;
-      border-radius: 8px;
-      color: white;
-      font-size: 13px;
-      font-weight: 600;
-      cursor: pointer;
-      transition: all 0.2s;
-      font-family: inherit;
-    }
-
-    .btn-primary:hover {
-      background: #818cf8;
-    }
-
-    .divider {
-      border-top: 1px solid rgba(255,255,255,0.08);
-      padding-top: 16px;
-      margin-top: 16px;
-    }
-
-    .btn-row {
-      display: flex;
-      gap: 8px;
-      margin-bottom: 12px;
-    }
-
-    .btn-secondary {
-      flex: 1;
-      padding: 8px;
-      background: rgba(255,255,255,0.05);
-      border: 1px solid rgba(255,255,255,0.1);
-      border-radius: 8px;
-      color: #d1d5db;
-      font-size: 12px;
-      cursor: pointer;
-      transition: all 0.2s;
-      font-family: inherit;
-    }
-
-    .btn-secondary:hover {
-      background: rgba(255,255,255,0.1);
-    }
-
-    .btn-secondary.active {
-      background: rgba(99,102,241,0.3);
-      border-color: #6366f1;
-      color: #818cf8;
-    }
-
-    .slider-group {
-      margin-bottom: 12px;
-    }
-
-    .slider-label {
-      display: flex;
-      justify-content: space-between;
-      color: #9ca3af;
-      font-size: 12px;
-      margin-bottom: 6px;
-    }
-
-    input[type="range"] {
-      -webkit-appearance: none;
-      width: 100%;
-      height: 4px;
-      background: rgba(255,255,255,0.1);
-      border-radius: 2px;
-      outline: none;
-    }
-
-    input[type="range"]::-webkit-slider-thumb {
-      -webkit-appearance: none;
-      width: 14px;
-      height: 14px;
-      background: #6366f1;
-      border-radius: 50%;
-      cursor: pointer;
-    }
-
-    input[type="range"]::-moz-range-thumb {
-      width: 14px;
-      height: 14px;
-      background: #6366f1;
-      border-radius: 50%;
-      cursor: pointer;
-      border: none;
-    }
-
-    .bg-colors {
-      display: flex;
-      gap: 6px;
-    }
-
-    .bg-btn {
-      width: 28px;
-      height: 28px;
-      border-radius: 6px;
-      border: 2px solid transparent;
-      cursor: pointer;
-      transition: border-color 0.2s;
-    }
-
-    .bg-btn.active {
-      border-color: #6366f1;
-    }
-
-    .stats {
-      margin-top: 16px;
-      padding-top: 16px;
-      border-top: 1px solid rgba(255,255,255,0.08);
-      font-size: 11px;
-      color: #6b7280;
-      line-height: 1.6;
-      display: none;
-    }
-
-    .stats.visible {
-      display: block;
-    }
-
-    .stats span {
-      color: #9ca3af;
-    }
-
-    /* Bottom Info */
-    .bottom-info {
-      position: absolute;
-      bottom: 24px;
-      left: 24px;
-      right: 24px;
-      display: flex;
-      justify-content: center;
-      z-index: 10;
-      pointer-events: none;
-    }
-
-    .info-box {
-      background: rgba(15,15,25,0.8);
-      border: 1px solid rgba(255,255,255,0.08);
-      border-radius: 12px;
-      padding: 10px 20px;
-      backdrop-filter: blur(20px);
-      pointer-events: auto;
-    }
-
-    .info-box p {
-      color: #6b7280;
-      font-size: 12px;
-      margin: 0;
-      text-align: center;
-    }
-
-    .info-box b {
-      color: #9ca3af;
-    }
-
-    /* Error state */
-    .error-msg {
-      color: #ef4444;
-      text-align: center;
-      padding: 20px;
-    }
-  </style>
-<base target="_blank">
+  @media (max-width: 640px){
+    #topbar{ padding:16px 16px 0 16px; flex-direction:column; gap:8px; }
+    #status-readout{ text-align:left; }
+    .bracket{ width:22px; height:22px; }
+    .bracket.tl,.bracket.tr{ top:12px; }
+    .bracket.bl,.bracket.br{ bottom:12px; }
+    .bracket.tl,.bracket.bl{ left:12px; }
+    .bracket.tr,.bracket.br{ right:12px; }
+    #bottombar{ padding:0 16px 16px 16px; flex-direction:column; align-items:stretch; }
+    #hint{ text-align:left; max-width:none; order:2; }
+    #controls{ order:1; }
+    #drop-card{ padding:24px 20px 20px 20px; }
+    .field-row{ flex-direction:column; }
+  }
+</style>
 </head>
 <body>
-  <div id="app">
-    <canvas id="canvas"></canvas>
 
-    <!-- Loading Overlay -->
-    <div id="loading">
-      <div class="spinner"></div>
-      <p style="color: #6b7280; font-size: 14px; letter-spacing: 0.05em;">3DGS Viewer</p>
+  <div id="viewer-root"></div>
+
+  <div class="bracket tl"></div>
+  <div class="bracket tr"></div>
+  <div class="bracket bl"></div>
+  <div class="bracket br"></div>
+
+  <div id="topbar">
+    <div>
+      <p class="eyebrow">Gaussian Splat // Betrachter</p>
+      <h1>Splat Viewer</h1>
+      <div class="sub">nur Darstellung · kein Editor</div>
     </div>
-
-    <!-- Top Bar -->
-    <div class="top-bar">
-      <div class="logo-area">
-        <div class="logo-icon">3D</div>
-        <h1 class="logo-text">Gaussian Splat Viewer</h1>
-      </div>
-      <div class="top-links">
-        <a href="https://github.com" target="_blank" class="btn-link">GitHub</a>
-      </div>
-    </div>
-
-    <!-- Controls Panel -->
-    <div class="controls-panel">
-      <h3 class="panel-title">
-        <span class="panel-title-dot purple"></span>
-        Datei laden
-      </h3>
-
-      <div class="input-group">
-        <label class="input-label">Lokale Datei (.ply / .splat)</label>
-        <input type="file" id="fileInput" accept=".ply,.splat" style="display: none;">
-        <button class="file-btn" onclick="document.getElementById('fileInput').click()">
-          <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
-            <polyline points="17 8 12 3 7 8"/>
-            <line x1="12" y1="3" x2="12" y2="15"/>
-          </svg>
-          Datei auswählen
-        </button>
-      </div>
-
-      <div class="input-group">
-        <label class="input-label">oder URL eingeben</label>
-        <div class="url-row">
-          <input type="text" id="urlInput" class="url-input" placeholder="https://... .ply">
-          <button id="loadUrl" class="btn-primary">Laden</button>
-        </div>
-      </div>
-
-      <div class="divider">
-        <h3 class="panel-title">
-          <span class="panel-title-dot green"></span>
-          Ansicht
-        </h3>
-
-        <div class="btn-row">
-          <button id="resetCam" class="btn-secondary">Reset Kamera</button>
-          <button id="toggleAuto" class="btn-secondary">Auto-Rotate</button>
-        </div>
-
-        <div class="slider-group">
-          <div class="slider-label">
-            <span>Punktgröße</span>
-            <span id="pointSizeVal">1.0</span>
-          </div>
-          <input type="range" id="pointSize" min="0.1" max="3" step="0.1" value="1">
-        </div>
-
-        <div>
-          <label class="input-label">Hintergrund</label>
-          <div class="bg-colors">
-            <button class="bg-btn active" data-bg="#0a0a0f" style="background: #0a0a0f;"></button>
-            <button class="bg-btn" data-bg="#1a1a2e" style="background: #1a1a2e;"></button>
-            <button class="bg-btn" data-bg="#ffffff" style="background: #ffffff;"></button>
-            <button class="bg-btn" data-bg="#87ceeb" style="background: #87ceeb;"></button>
-          </div>
-        </div>
-      </div>
-
-      <div id="stats" class="stats">
-        <div>Punkte: <span id="pointCount">-</span></div>
-        <div>FPS: <span id="fpsCounter">-</span></div>
-      </div>
-    </div>
-
-    <!-- Bottom Info -->
-    <div class="bottom-info">
-      <div class="info-box">
-        <p>
-          <b>Linksklick + Ziehen</b> rotieren · <b>Rechtsklick + Ziehen</b> verschieben · <b>Scrollen</b> zoomen
-        </p>
-      </div>
+    <div id="status-readout">
+      <div><span class="dot" id="status-dot"></span><span id="status-text">Kein Scan geladen</span></div>
+      <div>Format: <span class="val" id="status-format">–</span></div>
+      <div>FPS: <span class="val" id="status-fps">–</span></div>
     </div>
   </div>
 
-  <script type="module">
-    import * as SPLAT from "https://cdn.jsdelivr.net/npm/gsplat@1.2.3/+esm";
+  <div id="empty-state">
+    <div id="drop-card">
+      <div class="tag">Scan laden</div>
+      <h2>Datei ablegen oder auswählen</h2>
+      <p>Unterstützt werden <b>.ply</b>, <b>.splat</b> und <b>.ksplat</b>. Die Datei bleibt lokal im Browser — es wird nichts hochgeladen.</p>
 
-    const canvas = document.getElementById("canvas");
-    const loading = document.getElementById("loading");
-    const stats = document.getElementById("stats");
-    const pointCount = document.getElementById("pointCount");
-    const fpsCounter = document.getElementById("fpsCounter");
+      <div class="field-row">
+        <label class="filebtn" for="file-input">📂 Datei wählen</label>
+        <input type="file" id="file-input" accept=".ply,.splat,.ksplat">
+      </div>
 
-    let renderer, scene, camera, controls;
-    let autoRotate = false;
-    let frameCount = 0;
-    let lastTime = performance.now();
-    let currentSplat = null;
+      <div class="divider-row">oder per URL</div>
 
-    async function init() {
-      try {
-        renderer = new SPLAT.WebGLRenderer(canvas);
-        scene = new SPLAT.Scene();
-        camera = new SPLAT.Camera();
-        camera.position = new SPLAT.Vector3(0, 0, 5);
-        controls = new SPLAT.OrbitControls(camera, canvas);
+      <div class="field-row">
+        <input type="text" id="url-input" placeholder="https://.../scan.ksplat" autocomplete="off" spellcheck="false">
+        <button class="primary" id="url-load-btn">Laden</button>
+      </div>
+      <div id="formats-note">Hinweis: Beim Laden per URL muss der Server CORS erlauben, sonst blockiert der Browser den Zugriff. .spz wird von dieser Bibliothek aktuell nicht unterstützt.</div>
+      <div id="error-line"></div>
+    </div>
+  </div>
 
-        // Try loading a demo scene
-        const demoUrl = "https://huggingface.co/datasets/dylanebert/gsplat-viewer/resolve/main/garden.splat";
+  <div id="bottombar">
+    <div id="controls" class="hidden">
+      <button id="btn-reset">⟲ Ansicht zurücksetzen</button>
+      <button id="btn-flip">↕ Hochachse spiegeln</button>
+      <button id="btn-new">📂 Neuer Scan</button>
+    </div>
+    <div id="hint">Ziehen: rotieren · Rechtsklick ziehen: verschieben · Scrollen: zoomen</div>
+  </div>
 
-        try {
-          await loadFromUrl(demoUrl, false);
-        } catch(e) {
-          console.log("Demo load failed, waiting for user input");
-          loading.style.opacity = "0";
-          setTimeout(() => loading.style.display = "none", 500);
-        }
+<script type="module">
+  import * as THREE from 'three';
+  import * as GaussianSplats3D from 'GaussianSplats3D';
 
-        animate();
-      } catch (error) {
-        console.error("Init error:", error);
-        loading.innerHTML = '<p class="error-msg">WebGL nicht unterstützt</p>';
-      }
+  const viewerRoot   = document.getElementById('viewer-root');
+  const emptyState   = document.getElementById('empty-state');
+  const dropCard     = document.getElementById('drop-card');
+  const fileInput    = document.getElementById('file-input');
+  const urlInput     = document.getElementById('url-input');
+  const urlLoadBtn   = document.getElementById('url-load-btn');
+  const errorLine    = document.getElementById('error-line');
+  const controls     = document.getElementById('controls');
+  const hint         = document.getElementById('hint');
+  const statusDot    = document.getElementById('status-dot');
+  const statusText   = document.getElementById('status-text');
+  const statusFormat = document.getElementById('status-format');
+  const statusFps    = document.getElementById('status-fps');
+  const btnReset     = document.getElementById('btn-reset');
+  const btnFlip      = document.getElementById('btn-flip');
+  const btnNew       = document.getElementById('btn-new');
+
+  let viewer = null;
+  let currentUp = [0, -1, 0];
+  let currentObjectUrl = null;
+  let fpsRafId = null;
+
+  function showError(msg){
+    errorLine.textContent = msg;
+    errorLine.classList.add('show');
+  }
+  function clearError(){
+    errorLine.textContent = '';
+    errorLine.classList.remove('show');
+  }
+
+  function setStatus(text, live, format){
+    statusText.textContent = text;
+    statusDot.classList.toggle('live', !!live);
+    if (format) statusFormat.textContent = format;
+  }
+
+  function formatFromName(name){
+    const ext = name.split('.').pop().toLowerCase();
+    if (ext === 'ply')    return { format: GaussianSplats3D.SceneFormat.Ply,    label: 'PLY' };
+    if (ext === 'splat')  return { format: GaussianSplats3D.SceneFormat.Splat,  label: 'SPLAT' };
+    if (ext === 'ksplat') return { format: GaussianSplats3D.SceneFormat.KSplat, label: 'KSPLAT' };
+    return null;
+  }
+
+  function disposeViewer(){
+    if (fpsRafId){ cancelAnimationFrame(fpsRafId); fpsRafId = null; }
+    if (viewer){
+      try { viewer.dispose(); } catch(e) { /* best effort */ }
+      viewer = null;
     }
+    viewerRoot.innerHTML = '';
+    if (currentObjectUrl){ URL.revokeObjectURL(currentObjectUrl); currentObjectUrl = null; }
+  }
 
-    async function loadFromUrl(url, showLoading = true) {
-      if (showLoading) {
-        loading.style.display = "flex";
-        loading.style.opacity = "1";
-        loading.innerHTML = '<div class="spinner"></div><p style="color: #6b7280; font-size: 14px;">Lade Datei...</p>';
+  function startFpsCounter(){
+    let last = performance.now();
+    let frames = 0;
+    let acc = 0;
+    function tick(now){
+      const dt = now - last;
+      last = now;
+      frames++; acc += dt;
+      if (acc >= 500){
+        statusFps.textContent = Math.round((frames * 1000) / acc);
+        frames = 0; acc = 0;
       }
-
-      try {
-        if (currentSplat) {
-          scene.removeObject(currentSplat);
-        }
-
-        const response = await fetch(url);
-        if (!response.ok) throw new Error("Failed to fetch: " + response.status);
-
-        const buffer = await response.arrayBuffer();
-        const ext = url.split('.').pop().toLowerCase().split('?')[0];
-
-        if (ext === 'ply') {
-          currentSplat = await SPLAT.PLYLoader.LoadFromArray(new Uint8Array(buffer));
-        } else {
-          currentSplat = await SPLAT.SplatLoader.LoadFromArray(new Uint8Array(buffer));
-        }
-
-        scene.addObject(currentSplat);
-
-        const center = currentSplat.getCenter();
-        const radius = currentSplat.getRadius();
-        camera.position = new SPLAT.Vector3(center.x, center.y, center.z + radius * 2.5);
-        controls.target = new SPLAT.Vector3(center.x, center.y, center.z);
-        controls.update();
-
-        stats.classList.add("visible");
-        pointCount.textContent = currentSplat.vertexCount?.toLocaleString() || "Unknown";
-
-        loading.style.opacity = "0";
-        setTimeout(() => loading.style.display = "none", 500);
-
-      } catch (error) {
-        console.error("Load error:", error);
-        loading.innerHTML = '<p class="error-msg">Fehler beim Laden: ' + error.message + '</p>';
-        setTimeout(() => {
-          loading.style.display = "none";
-        }, 3000);
-      }
+      fpsRafId = requestAnimationFrame(tick);
     }
+    fpsRafId = requestAnimationFrame(tick);
+  }
 
-    function animate() {
-      requestAnimationFrame(animate);
+  function createViewer(){
+    disposeViewer();
+    viewer = new GaussianSplats3D.Viewer({
+      rootElement: viewerRoot,
+      cameraUp: currentUp,
+      initialCameraPosition: [-1, -3, 5],
+      initialCameraLookAt: [0, 0, 0],
+      useBuiltInControls: true,
+      selfDrivenMode: true,
+      sharedMemoryForWorkers: false
+    });
+    return viewer;
+  }
 
-      if (autoRotate) {
-        controls.autoRotate = true;
-        controls.update();
-      }
-
-      renderer.render(scene, camera);
-
-      frameCount++;
-      const now = performance.now();
-      if (now - lastTime >= 1000) {
-        fpsCounter.textContent = frameCount;
-        frameCount = 0;
-        lastTime = now;
-      }
+  async function loadScene(path, opts, formatLabel){
+    clearError();
+    setStatus('Lädt…', true, formatLabel || '–');
+    createViewer();
+    try {
+      await viewer.addSplatScene(path, Object.assign({
+        showLoadingUI: true,
+        splatAlphaRemovalThreshold: 5
+      }, opts || {}));
+      viewer.start();
+      setStatus('Scan aktiv', true);
+      emptyState.classList.add('hidden');
+      controls.classList.remove('hidden');
+      hint.classList.remove('hidden');
+      startFpsCounter();
+    } catch (err){
+      console.error(err);
+      setStatus('Fehler beim Laden', false, formatLabel || '–');
+      showError('Datei konnte nicht geladen werden: ' + (err && err.message ? err.message : 'unbekannter Fehler'));
+      emptyState.classList.remove('hidden');
+      controls.classList.add('hidden');
     }
+  }
 
-    // File upload
-    document.getElementById("fileInput").addEventListener("change", async (e) => {
-      const file = e.target.files[0];
-      if (!file) return;
+  function loadFromFile(file){
+    const meta = formatFromName(file.name);
+    if (!meta){
+      showError('Nicht unterstütztes Format: .' + file.name.split('.').pop());
+      return;
+    }
+    if (currentObjectUrl) URL.revokeObjectURL(currentObjectUrl);
+    currentObjectUrl = URL.createObjectURL(file);
+    loadScene(currentObjectUrl, { format: meta.format }, meta.label);
+  }
 
-      loading.style.display = "flex";
-      loading.style.opacity = "1";
-      loading.innerHTML = '<div class="spinner"></div><p style="color: #6b7280; font-size: 14px;">Lade ' + file.name + '...</p>';
+  function loadFromUrl(url){
+    if (!url) return;
+    const meta = formatFromName(url.split('?')[0].split('#')[0]);
+    loadScene(url, meta ? { format: meta.format } : {}, meta ? meta.label : 'URL');
+  }
 
-      try {
-        if (currentSplat) scene.removeObject(currentSplat);
+  // --- file input ---
+  fileInput.addEventListener('change', (e) => {
+    const file = e.target.files && e.target.files[0];
+    if (file) loadFromFile(file);
+  });
 
-        const buffer = await file.arrayBuffer();
-        const ext = file.name.split('.').pop().toLowerCase();
+  // --- url input ---
+  urlLoadBtn.addEventListener('click', () => loadFromUrl(urlInput.value.trim()));
+  urlInput.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') loadFromUrl(urlInput.value.trim());
+  });
 
-        if (ext === 'ply') {
-          currentSplat = await SPLAT.PLYLoader.LoadFromArray(new Uint8Array(buffer));
-        } else {
-          currentSplat = await SPLAT.SplatLoader.LoadFromArray(new Uint8Array(buffer));
-        }
+  // --- drag & drop ---
+  ['dragenter','dragover'].forEach(evt =>
+    dropCard.addEventListener(evt, (e) => { e.preventDefault(); dropCard.classList.add('dragover'); })
+  );
+  ['dragleave','drop'].forEach(evt =>
+    dropCard.addEventListener(evt, (e) => { e.preventDefault(); dropCard.classList.remove('dragover'); })
+  );
+  dropCard.addEventListener('drop', (e) => {
+    const file = e.dataTransfer.files && e.dataTransfer.files[0];
+    if (file) loadFromFile(file);
+  });
+  // allow dropping anywhere on the page, not just the card
+  window.addEventListener('dragover', (e) => e.preventDefault());
+  window.addEventListener('drop', (e) => {
+    e.preventDefault();
+    const file = e.dataTransfer.files && e.dataTransfer.files[0];
+    if (file) loadFromFile(file);
+  });
 
-        scene.addObject(currentSplat);
+  // --- controls ---
+  btnReset.addEventListener('click', () => {
+    if (viewer && viewer.camera && viewer.controls){
+      viewer.camera.position.set(-1, -3, 5);
+      viewer.camera.lookAt(0, 0, 0);
+      if (viewer.controls.target) viewer.controls.target.set(0,0,0);
+    }
+  });
 
-        const center = currentSplat.getCenter();
-        const radius = currentSplat.getRadius();
-        camera.position = new SPLAT.Vector3(center.x, center.y, center.z + radius * 2.5);
-        controls.target = new SPLAT.Vector3(center.x, center.y, center.z);
-        controls.update();
+  btnFlip.addEventListener('click', () => {
+    currentUp = currentUp.map(v => -v);
+    if (viewer && viewer.camera){
+      viewer.camera.up.set(currentUp[0], currentUp[1], currentUp[2]);
+    }
+  });
 
-        stats.classList.add("visible");
-        pointCount.textContent = currentSplat.vertexCount?.toLocaleString() || "Unknown";
-
-        loading.style.opacity = "0";
-        setTimeout(() => loading.style.display = "none", 500);
-
-      } catch (error) {
-        loading.innerHTML = '<p class="error-msg">Fehler: ' + error.message + '</p>';
-        setTimeout(() => loading.style.display = "none", 3000);
-      }
-    });
-
-    // URL load
-    document.getElementById("loadUrl").addEventListener("click", () => {
-      const url = document.getElementById("urlInput").value.trim();
-      if (url) loadFromUrl(url);
-    });
-
-    document.getElementById("urlInput").addEventListener("keydown", (e) => {
-      if (e.key === "Enter") {
-        const url = document.getElementById("urlInput").value.trim();
-        if (url) loadFromUrl(url);
-      }
-    });
-
-    // Controls
-    document.getElementById("resetCam").addEventListener("click", () => {
-      if (currentSplat) {
-        const center = currentSplat.getCenter();
-        const radius = currentSplat.getRadius();
-        camera.position = new SPLAT.Vector3(center.x, center.y, center.z + radius * 2.5);
-        controls.target = new SPLAT.Vector3(center.x, center.y, center.z);
-        controls.update();
-      }
-    });
-
-    document.getElementById("toggleAuto").addEventListener("click", (e) => {
-      autoRotate = !autoRotate;
-      e.target.classList.toggle("active", autoRotate);
-    });
-
-    document.getElementById("pointSize").addEventListener("input", (e) => {
-      const val = parseFloat(e.target.value);
-      document.getElementById("pointSizeVal").textContent = val.toFixed(1);
-      if (renderer && renderer.setPointSize) renderer.setPointSize(val);
-    });
-
-    // Background color
-    document.querySelectorAll('.bg-btn').forEach(btn => {
-      btn.addEventListener('click', () => {
-        const bg = btn.dataset.bg;
-        document.getElementById('app').style.background = bg;
-        document.querySelectorAll('.bg-btn').forEach(b => b.classList.remove('active'));
-        btn.classList.add('active');
-      });
-    });
-
-    // Resize handler
-    window.addEventListener("resize", () => {
-      if (renderer) renderer.setSize(window.innerWidth, window.innerHeight);
-    });
-
-    init();
-  </script>
+  btnNew.addEventListener('click', () => {
+    disposeViewer();
+    emptyState.classList.remove('hidden');
+    controls.classList.add('hidden');
+    hint.classList.add('hidden');
+    setStatus('Kein Scan geladen', false, '–');
+    statusFps.textContent = '–';
+    fileInput.value = '';
+    urlInput.value = '';
+  });
+</script>
 </body>
 </html>
