@@ -21,7 +21,7 @@
 
 <style>
   :root{
-    --bg:#0b0d0e;
+    --bg:#4a4d50;
     --panel:#14181a;
     --panel-2:#191e20;
     --border:#262b2e;
@@ -48,7 +48,7 @@
   #viewer-root{
     position:fixed; inset:0; width:100%; height:100%;
     background:
-      radial-gradient(circle at 50% 42%, #14181a 0%, #0b0d0e 70%);
+      radial-gradient(circle at 50% 42%, #55585b 0%, #4a4d50 70%);
   }
   #viewer-root canvas{ display:block; outline:none; }
 
@@ -199,7 +199,7 @@
   #loading-state{
     position:fixed; inset:0; z-index:11;
     display:flex; align-items:center; justify-content:center;
-    padding:20px; background:rgba(11,13,14,0.72);
+    padding:20px; background:rgba(30,32,34,0.72);
   }
   #loading-state.hidden{ display:none; }
   #loading-card{
@@ -298,6 +298,7 @@
     <div id="controls" class="hidden">
       <button id="btn-reset">⟲ Ansicht zurücksetzen</button>
       <button id="btn-flip">↕ Hochachse spiegeln</button>
+      <button id="btn-perf">⚡ Performance: An</button>
       <button id="btn-new">📂 Neuer Scan</button>
     </div>
     <div id="hint">Ziehen: rotieren · Rechtsklick ziehen: verschieben · Scrollen: zoomen</div>
@@ -322,6 +323,7 @@
   const statusFps    = document.getElementById('status-fps');
   const btnReset     = document.getElementById('btn-reset');
   const btnFlip      = document.getElementById('btn-flip');
+  const btnPerf      = document.getElementById('btn-perf');
   const btnNew       = document.getElementById('btn-new');
   const loadingState = document.getElementById('loading-state');
   const loadingDetail= document.getElementById('loading-detail');
@@ -409,6 +411,8 @@
     fpsRafId = requestAnimationFrame(tick);
   }
 
+  let perfMode = true; // ignoreDevicePixelRatio: renders at 1x instead of full retina/HiDPI res
+
   function createViewer(){
     disposeViewer();
     viewer = new GaussianSplats3D.Viewer({
@@ -418,12 +422,22 @@
       initialCameraLookAt: [0, 0, 0],
       useBuiltInControls: true,
       selfDrivenMode: true,
-      sharedMemoryForWorkers: false
+      // GitHub Pages sends no COOP/COEP headers, so SharedArrayBuffer/cross-origin
+      // isolation is unavailable -> sharedMemoryForWorkers must stay false. The
+      // library explicitly recommends keeping gpuAcceleratedSort false in that
+      // case too, otherwise distance data gets copied to/from the GPU every
+      // frame without the shared-memory fast path -> net loss, not a gain.
+      sharedMemoryForWorkers: false,
+      gpuAcceleratedSort: false,
+      ignoreDevicePixelRatio: perfMode
     });
     return viewer;
   }
 
+  let lastLoad = null; // { path, opts, formatLabel, sizeBytes } — used to reload on perf toggle
+
   async function loadScene(path, opts, formatLabel, sizeBytes){
+    lastLoad = { path, opts, formatLabel, sizeBytes };
     setStatus('Lädt…', true, formatLabel || '–');
     beginLoading(formatLabel || 'Datei', sizeBytes);
     createViewer();
@@ -508,6 +522,14 @@
     currentUp = currentUp.map(v => -v);
     if (viewer && viewer.camera){
       viewer.camera.up.set(currentUp[0], currentUp[1], currentUp[2]);
+    }
+  });
+
+  btnPerf.addEventListener('click', () => {
+    perfMode = !perfMode;
+    btnPerf.textContent = perfMode ? '⚡ Performance: An' : '⚡ Performance: Aus';
+    if (lastLoad){
+      loadScene(lastLoad.path, lastLoad.opts, lastLoad.formatLabel, lastLoad.sizeBytes);
     }
   });
 
