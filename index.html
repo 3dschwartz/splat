@@ -24,7 +24,6 @@
       outline: none;
     }
 
-    /* Loading Overlay */
     #loading {
       position: absolute;
       inset: 0;
@@ -49,7 +48,6 @@
 
     @keyframes spin { to { transform: rotate(360deg); } }
 
-    /* Top Bar */
     .top-bar {
       position: absolute;
       top: 0;
@@ -114,7 +112,6 @@
       background: rgba(255,255,255,0.15);
     }
 
-    /* Controls Panel */
     .controls-panel {
       position: absolute;
       top: 80px;
@@ -131,18 +128,9 @@
       box-shadow: 0 20px 40px rgba(0,0,0,0.4);
     }
 
-    .controls-panel::-webkit-scrollbar {
-      width: 6px;
-    }
-
-    .controls-panel::-webkit-scrollbar-track {
-      background: transparent;
-    }
-
-    .controls-panel::-webkit-scrollbar-thumb {
-      background: rgba(255,255,255,0.1);
-      border-radius: 3px;
-    }
+    .controls-panel::-webkit-scrollbar { width: 6px; }
+    .controls-panel::-webkit-scrollbar-track { background: transparent; }
+    .controls-panel::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 3px; }
 
     .panel-title {
       color: white;
@@ -154,27 +142,14 @@
       gap: 8px;
     }
 
-    .panel-title-dot {
-      width: 8px;
-      height: 8px;
-      border-radius: 50%;
-    }
-
+    .panel-title-dot { width: 8px; height: 8px; border-radius: 50%; }
     .panel-title-dot.purple { background: #6366f1; }
     .panel-title-dot.green { background: #10b981; }
     .panel-title-dot.orange { background: #f59e0b; }
+    .panel-title-dot.red { background: #ef4444; }
 
-    .input-group {
-      margin-bottom: 16px;
-    }
-
-    .input-label {
-      display: block;
-      color: #9ca3af;
-      font-size: 12px;
-      margin-bottom: 8px;
-      font-weight: 500;
-    }
+    .input-group { margin-bottom: 16px; }
+    .input-label { display: block; color: #9ca3af; font-size: 12px; margin-bottom: 8px; font-weight: 500; }
 
     .file-btn {
       width: 100%;
@@ -194,14 +169,9 @@
       font-family: inherit;
     }
 
-    .file-btn:hover {
-      background: rgba(99,102,241,0.25);
-    }
+    .file-btn:hover { background: rgba(99,102,241,0.25); }
 
-    .url-row {
-      display: flex;
-      gap: 8px;
-    }
+    .url-row { display: flex; gap: 8px; }
 
     .url-input {
       flex: 1;
@@ -216,13 +186,8 @@
       font-family: inherit;
     }
 
-    .url-input:focus {
-      border-color: #6366f1;
-    }
-
-    .url-input::placeholder {
-      color: #4b5563;
-    }
+    .url-input:focus { border-color: #6366f1; }
+    .url-input::placeholder { color: #4b5563; }
 
     .btn-primary {
       padding: 10px 16px;
@@ -237,21 +202,10 @@
       font-family: inherit;
     }
 
-    .btn-primary:hover {
-      background: #818cf8;
-    }
+    .btn-primary:hover { background: #818cf8; }
 
-    .divider {
-      border-top: 1px solid rgba(255,255,255,0.08);
-      padding-top: 16px;
-      margin-top: 16px;
-    }
-
-    .btn-row {
-      display: flex;
-      gap: 8px;
-      margin-bottom: 12px;
-    }
+    .divider { border-top: 1px solid rgba(255,255,255,0.08); padding-top: 16px; margin-top: 16px; }
+    .btn-row { display: flex; gap: 8px; margin-bottom: 12px; }
 
     .btn-secondary {
       flex: 1;
@@ -266,27 +220,11 @@
       font-family: inherit;
     }
 
-    .btn-secondary:hover {
-      background: rgba(255,255,255,0.1);
-    }
+    .btn-secondary:hover { background: rgba(255,255,255,0.1); }
+    .btn-secondary.active { background: rgba(99,102,241,0.3); border-color: #6366f1; color: #818cf8; }
 
-    .btn-secondary.active {
-      background: rgba(99,102,241,0.3);
-      border-color: #6366f1;
-      color: #818cf8;
-    }
-
-    .slider-group {
-      margin-bottom: 12px;
-    }
-
-    .slider-label {
-      display: flex;
-      justify-content: space-between;
-      color: #9ca3af;
-      font-size: 12px;
-      margin-bottom: 6px;
-    }
+    .slider-group { margin-bottom: 12px; }
+    .slider-label { display: flex; justify-content: space-between; color: #9ca3af; font-size: 12px; margin-bottom: 6px; }
 
     input[type="range"] {
       -webkit-appearance: none;
@@ -315,23 +253,9 @@
       border: none;
     }
 
-    .bg-colors {
-      display: flex;
-      gap: 6px;
-    }
-
-    .bg-btn {
-      width: 28px;
-      height: 28px;
-      border-radius: 6px;
-      border: 2px solid transparent;
-      cursor: pointer;
-      transition: border-color 0.2s;
-    }
-
-    .bg-btn.active {
-      border-color: #6366f1;
-    }
+    .bg-colors { display: flex; gap: 6px; }
+    .bg-btn { width: 28px; height: 28px; border-radius: 6px; border: 2px solid transparent; cursor: pointer; transition: border-color 0.2s; }
+    .bg-btn.active { border-color: #6366f1; }
 
     .stats {
       margin-top: 16px;
@@ -343,15 +267,9 @@
       display: none;
     }
 
-    .stats.visible {
-      display: block;
-    }
+    .stats.visible { display: block; }
+    .stats span { color: #9ca3af; }
 
-    .stats span {
-      color: #9ca3af;
-    }
-
-    /* Bottom Info */
     .bottom-info {
       position: absolute;
       bottom: 24px;
@@ -372,75 +290,36 @@
       pointer-events: auto;
     }
 
-    .info-box p {
-      color: #6b7280;
-      font-size: 12px;
-      margin: 0;
-      text-align: center;
-    }
+    .info-box p { color: #6b7280; font-size: 12px; margin: 0; text-align: center; }
+    .info-box b { color: #9ca3af; }
 
-    .info-box b {
-      color: #9ca3af;
-    }
+    .error-msg { color: #ef4444; text-align: center; padding: 20px; max-width: 400px; }
+    .info-text { color: #6b7280; font-size: 11px; line-height: 1.5; margin-top: 8px; padding: 8px; background: rgba(255,255,255,0.03); border-radius: 6px; }
+    .format-list { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 6px; }
+    .format-tag { padding: 2px 8px; background: rgba(99,102,241,0.15); border: 1px solid rgba(99,102,241,0.3); border-radius: 4px; color: #818cf8; font-size: 10px; font-weight: 500; }
 
-    .error-msg {
-      color: #ef4444;
-      text-align: center;
-      padding: 20px;
-      max-width: 400px;
-    }
-
-    .success-msg {
-      color: #10b981;
-      text-align: center;
-      padding: 20px;
-    }
-
-    .info-text {
-      color: #6b7280;
-      font-size: 11px;
-      line-height: 1.5;
-      margin-top: 8px;
-      padding: 8px;
-      background: rgba(255,255,255,0.03);
-      border-radius: 6px;
-    }
-
-    .format-list {
-      display: flex;
-      flex-wrap: wrap;
+    .rotation-controls {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
       gap: 4px;
-      margin-top: 6px;
+      margin-bottom: 8px;
     }
 
-    .format-tag {
-      padding: 2px 8px;
-      background: rgba(99,102,241,0.15);
-      border: 1px solid rgba(99,102,241,0.3);
-      border-radius: 4px;
-      color: #818cf8;
-      font-size: 10px;
-      font-weight: 500;
-    }
-
-    .debug-info {
-      position: absolute;
-      bottom: 80px;
-      right: 24px;
-      background: rgba(15,15,25,0.9);
-      border: 1px solid rgba(255,255,255,0.08);
-      border-radius: 8px;
-      padding: 10px 14px;
-      color: #6b7280;
+    .rot-btn {
+      padding: 6px 4px;
+      background: rgba(255,255,255,0.05);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 6px;
+      color: #d1d5db;
       font-size: 11px;
-      z-index: 10;
-      font-family: monospace;
-      display: none;
+      cursor: pointer;
+      transition: all 0.2s;
+      font-family: inherit;
+      text-align: center;
     }
 
-    .debug-info.visible {
-      display: block;
-    }
+    .rot-btn:hover { background: rgba(255,255,255,0.1); }
+    .rot-btn.active { background: rgba(239,68,68,0.2); border-color: #ef4444; color: #fca5a5; }
   </style>
 <base target="_blank">
 </head>
@@ -448,14 +327,12 @@
   <div id="app">
     <canvas id="canvas"></canvas>
 
-    <!-- Loading Overlay -->
     <div id="loading">
       <div class="spinner"></div>
       <p style="color: #6b7280; font-size: 14px; letter-spacing: 0.05em;">3DGS Viewer</p>
       <p id="loadingStatus" style="color: #4b5563; font-size: 12px; margin-top: 8px;">Initialisiere...</p>
     </div>
 
-    <!-- Top Bar -->
     <div class="top-bar">
       <div class="logo-area">
         <div class="logo-icon">3D</div>
@@ -466,7 +343,6 @@
       </div>
     </div>
 
-    <!-- Controls Panel -->
     <div class="controls-panel">
       <h3 class="panel-title">
         <span class="panel-title-dot purple"></span>
@@ -490,7 +366,6 @@
             <span class="format-tag">.ply</span>
             <span class="format-tag">.splat</span>
             <span class="format-tag">.sog</span>
-            <span class="format-tag">.compressed.ply</span>
           </div>
         </div>
       </div>
@@ -538,6 +413,28 @@
 
       <div class="divider">
         <h3 class="panel-title">
+          <span class="panel-title-dot red"></span>
+          Modell-Rotation
+        </h3>
+        <div class="info-text" style="margin-bottom: 8px;">
+          Modell steht auf dem Kopf? Korrigiere die Rotation:
+        </div>
+        <div class="rotation-controls">
+          <button class="rot-btn active" id="rotNone" title="Keine Korrektur">Original</button>
+          <button class="rot-btn" id="rotX90" title="X +90°">X +90°</button>
+          <button class="rot-btn" id="rotX180" title="X +180°">X +180°</button>
+          <button class="rot-btn" id="rotX270" title="X -90°">X -90°</button>
+          <button class="rot-btn" id="rotZ90" title="Z +90°">Z +90°</button>
+          <button class="rot-btn" id="rotZ180" title="Z +180°">Z +180°</button>
+        </div>
+        <div class="btn-row">
+          <button id="flipY" class="btn-secondary">Y-Flip</button>
+          <button id="flipZ" class="btn-secondary">Z-Flip</button>
+        </div>
+      </div>
+
+      <div class="divider">
+        <h3 class="panel-title">
           <span class="panel-title-dot orange"></span>
           Beispiele
         </h3>
@@ -556,7 +453,6 @@
       </div>
     </div>
 
-    <!-- Bottom Info -->
     <div class="bottom-info">
       <div class="info-box">
         <p>
@@ -564,12 +460,8 @@
         </p>
       </div>
     </div>
-
-    <!-- Debug Info -->
-    <div id="debugInfo" class="debug-info"></div>
   </div>
 
-  <!-- PlayCanvas UMD Build - stabiler als ES Module -->
   <script src="https://cdn.jsdelivr.net/npm/playcanvas@2.6.2/build/playcanvas.min.js"></script>
 
   <script>
@@ -583,7 +475,6 @@
       const fpsCounter = document.getElementById('fpsCounter');
       const rendererInfo = document.getElementById('rendererInfo');
       const formatInfo = document.getElementById('formatInfo');
-      const debugInfo = document.getElementById('debugInfo');
       const canvas = document.getElementById('canvas');
 
       let app, camera, splatEntity;
@@ -598,20 +489,33 @@
       let rotX = 0.3, rotY = 0;
       let distance = 2.5;
 
+      // Model rotation correction
+      let modelRotation = new pc.Quat();
+      let modelEuler = new pc.Vec3(0, 0, 0);
+      let flipY = false;
+      let flipZ = false;
+
       function log(msg) {
         console.log('[3DGS]', msg);
-        loadingStatus.textContent = msg;
+        if (loadingStatus) loadingStatus.textContent = msg;
       }
 
       function showError(msg) {
         console.error('[3DGS]', msg);
         loading.innerHTML = '<p class="error-msg">' + msg + '</p>';
-        setTimeout(() => {
+        setTimeout(function() {
           loading.style.display = 'none';
-        }, 8000);
+        }, 10000);
       }
 
-      // Check if PlayCanvas loaded
+      function showSuccess(msg) {
+        loading.innerHTML = '<p style="color: #10b981; text-align: center; padding: 20px;">' + msg + '</p>';
+        setTimeout(function() {
+          loading.style.display = 'none';
+          loading.style.opacity = '0';
+        }, 1500);
+      }
+
       if (typeof pc === 'undefined') {
         showError('PlayCanvas konnte nicht geladen werden. Prüfe deine Internetverbindung.');
         return;
@@ -619,11 +523,104 @@
 
       log('PlayCanvas geladen: v' + pc.version);
 
+      function applyModelRotation() {
+        if (!splatEntity) return;
+
+        // Build rotation quaternion from euler angles
+        const qx = new pc.Quat().setFromEulerAngles(modelEuler.x, 0, 0);
+        const qy = new pc.Quat().setFromEulerAngles(0, modelEuler.y, 0);
+        const qz = new pc.Quat().setFromEulerAngles(0, 0, modelEuler.z);
+
+        modelRotation.copy(qx).mul(qy).mul(qz);
+
+        // Apply scale flips
+        const scale = new pc.Vec3(1, flipY ? -1 : 1, flipZ ? -1 : 1);
+
+        splatEntity.setLocalRotation(modelRotation);
+        splatEntity.setLocalScale(scale);
+      }
+
+      function parsePly(buffer) {
+        const data = new Uint8Array(buffer);
+        let headerEnd = 0;
+        let header = '';
+
+        for (let i = 0; i < data.length - 1; i++) {
+          if (data[i] === 10 && data[i+1] === 10) {
+            headerEnd = i + 2;
+            header = new TextDecoder().decode(data.slice(0, headerEnd));
+            break;
+          }
+        }
+
+        if (!headerEnd) {
+          throw new Error('PLY header nicht gefunden');
+        }
+
+        const lines = header.split('\n');
+        let vertexCount = 0;
+        let format = 'ascii';
+        let properties = [];
+
+        for (const line of lines) {
+          const parts = line.trim().split(/\s+/);
+          if (parts[0] === 'element' && parts[1] === 'vertex') {
+            vertexCount = parseInt(parts[2]);
+          } else if (parts[0] === 'format') {
+            format = parts[1];
+          } else if (parts[0] === 'property') {
+            properties.push(parts[parts.length - 1]);
+          }
+        }
+
+        if (!vertexCount) {
+          throw new Error('Keine Vertices im PLY gefunden');
+        }
+
+        log('PLY Header: ' + vertexCount + ' vertices, Format: ' + format + ', Properties: ' + properties.length);
+
+        return {
+          vertexCount: vertexCount,
+          format: format,
+          properties: properties,
+          data: data.slice(headerEnd)
+        };
+      }
+
+      function isGzip(buffer) {
+        const data = new Uint8Array(buffer);
+        return data[0] === 0x1f && data[1] === 0x8b;
+      }
+
+      async function decompressGzip(buffer) {
+        if (typeof DecompressionStream !== 'undefined') {
+          try {
+            const stream = new Response(buffer).body.pipeThrough(new DecompressionStream('gzip'));
+            const result = await new Response(stream).arrayBuffer();
+            log('Gzip dekomprimiert via DecompressionStream');
+            return result;
+          } catch (e) {
+            console.log('DecompressionStream failed:', e);
+          }
+        }
+
+        try {
+          if (typeof pako !== 'undefined') {
+            const result = pako.inflate(new Uint8Array(buffer)).buffer;
+            log('Gzip dekomprimiert via Pako');
+            return result;
+          }
+        } catch (e) {
+          console.log('Pako failed:', e);
+        }
+
+        throw new Error('Gzip-Dekomprimierung nicht verfügbar. Bitte lade eine unkomprimierte .ply Datei.');
+      }
+
       function init() {
         try {
           log('Erstelle Application...');
 
-          // Create app with explicit WebGL2 preference
           app = new pc.Application(canvas, {
             elementInput: new pc.ElementInput(canvas),
             keyboard: new pc.Keyboard(window),
@@ -647,10 +644,8 @@
 
           log('Erstelle Szene...');
 
-          // Background
           app.scene.ambientLight = new pc.Color(0.5, 0.5, 0.5);
 
-          // Camera
           const cameraEntity = new pc.Entity('Camera');
           cameraEntity.addComponent('camera', {
             clearColor: new pc.Color(0.04, 0.04, 0.06),
@@ -662,7 +657,6 @@
           app.root.addChild(cameraEntity);
           camera = cameraEntity.camera;
 
-          // Light
           const light = new pc.Entity('Light');
           light.addComponent('light', {
             type: 'directional',
@@ -675,7 +669,6 @@
           log('Setup Orbit Controls...');
           setupOrbitControls();
 
-          // FPS counter
           app.on('update', function(dt) {
             frameCount++;
             const now = performance.now();
@@ -691,11 +684,10 @@
             }
           });
 
-          // Renderer info
           const device = app.graphicsDevice;
           rendererInfo.textContent = device.webgl2 ? 'WebGL2' : 'WebGL1';
 
-          log('Bereit! Lade eine Datei oder wähle ein Beispiel.');
+          log('Bereit!');
 
           loading.style.opacity = '0';
           setTimeout(function() {
@@ -756,7 +748,6 @@
           e.preventDefault();
         }, { passive: false });
 
-        // Touch
         let touchStartDist = 0;
 
         canvas.addEventListener('touchstart', function(e) {
@@ -813,19 +804,19 @@
         if (ext === 'splat') return 'splat';
 
         if (buffer && buffer.byteLength > 3) {
-          const header = new Uint8Array(buffer.slice(0, 100));
-          const headerStr = new TextDecoder().decode(header);
+          const data = new Uint8Array(buffer.slice(0, 100));
+          const headerStr = new TextDecoder().decode(data);
 
           if (headerStr.includes('ply')) return 'ply';
           if (headerStr.includes('SOG')) return 'sog';
-          if (header[0] === 0x1f && header[1] === 0x8b) return 'compressed';
+
+          if (data[0] === 0x1f && data[1] === 0x8b) return 'gzip';
         }
 
         return ext || 'unknown';
       }
 
       async function fetchWithCors(url) {
-        // Try direct first
         try {
           const response = await fetch(url, { 
             method: 'GET',
@@ -833,10 +824,9 @@
           });
           if (response.ok) return response;
         } catch (e) {
-          console.log('Direct fetch failed, trying proxy...');
+          console.log('Direct fetch failed:', e.message);
         }
 
-        // Try CORS proxy
         try {
           const proxyUrl = 'https://corsproxy.io/?' + encodeURIComponent(url);
           const response = await fetch(proxyUrl, {
@@ -845,10 +835,32 @@
           });
           if (response.ok) return response;
         } catch (e) {
-          console.log('Proxy fetch failed');
+          console.log('Proxy fetch failed:', e.message);
         }
 
-        throw new Error('Konnte Datei nicht laden. CORS-Problem?');
+        throw new Error('Konnte Datei nicht laden. CORS-Problem oder URL ungültig.');
+      }
+
+      async function prepareBuffer(buffer, filename) {
+        const format = detectFormat(filename, buffer);
+        log('Erkanntes Format: ' + format);
+
+        if (format === 'gzip' || isGzip(buffer)) {
+          log('Decompressing gzip...');
+          buffer = await decompressGzip(buffer);
+          log('Dekomprimiert: ' + buffer.byteLength + ' bytes');
+        }
+
+        if (detectFormat(filename, buffer) === 'ply' || detectFormat(filename, buffer) === 'gzip') {
+          try {
+            const plyInfo = parsePly(buffer);
+            log('PLY valid: ' + plyInfo.vertexCount + ' vertices');
+          } catch (e) {
+            log('PLY Parse Warnung: ' + e.message);
+          }
+        }
+
+        return { buffer: buffer, format: format };
       }
 
       async function loadSplatFromUrl(url, showLoading) {
@@ -869,19 +881,36 @@
             currentAsset = null;
           }
 
+          // Reset rotation
+          modelEuler.set(0, 0, 0);
+          flipY = false;
+          flipZ = false;
+          updateRotationUI();
+
           log('Lade Datei von URL...');
           const response = await fetchWithCors(url);
-          const buffer = await response.arrayBuffer();
+          let buffer = await response.arrayBuffer();
 
-          log('Erkenne Format...');
-          const format = detectFormat(url, buffer);
+          log('Datei geladen: ' + buffer.byteLength + ' bytes');
+
+          log('Bereite Buffer vor...');
+          const prepared = await prepareBuffer(buffer, url);
+          buffer = prepared.buffer;
+          const format = prepared.format;
           formatInfo.textContent = format.toUpperCase();
 
           log('Erstelle Asset...');
           const blob = new Blob([buffer], { type: 'application/octet-stream' });
           const blobUrl = URL.createObjectURL(blob);
 
-          const asset = new pc.Asset('splat', 'gsplat', { 
+          let assetType = 'gsplat';
+          if (format === 'sog') assetType = 'gsplat';
+          else if (format === 'splat') assetType = 'gsplat';
+          else if (format === 'ply') assetType = 'gsplat';
+
+          log('Asset-Typ: ' + assetType);
+
+          const asset = new pc.Asset('splat', assetType, { 
             url: blobUrl,
             filename: url.split('/').pop().split('?')[0]
           });
@@ -896,9 +925,17 @@
               clearTimeout(timeout);
               resolve();
             });
-            asset.on('error', function(err) {
+
+            asset.on('error', function(err, asset) {
               clearTimeout(timeout);
-              reject(new Error('Asset-Fehler: ' + (err || 'Unbekannt')));
+              console.error('Asset error details:', err, asset);
+              let errorMsg = 'Asset-Fehler';
+              if (err && err.message) {
+                errorMsg = err.message;
+              } else if (typeof err === 'string') {
+                errorMsg = err;
+              }
+              reject(new Error(errorMsg));
             });
 
             app.assets.add(asset);
@@ -911,6 +948,11 @@
           splatEntity = new pc.Entity('Splat');
           splatEntity.addComponent('gsplat', { asset: asset });
           app.root.addChild(splatEntity);
+
+          // Apply default rotation correction (most PLY files are Z-up, PlayCanvas is Y-up)
+          // This rotates -90° around X to convert Z-up to Y-up
+          modelEuler.set(-90, 0, 0);
+          applyModelRotation();
 
           log('Positioniere Kamera...');
           const resource = asset.resource;
@@ -946,15 +988,21 @@
             }
           }
 
-          log('Fertig!');
-          loading.style.opacity = '0';
-          setTimeout(function() {
-            loading.style.display = 'none';
-          }, 500);
+          showSuccess('Splat geladen!');
 
         } catch (error) {
-          console.error(error);
-          showError('Fehler: ' + error.message);
+          console.error('Full error:', error);
+
+          let errorMsg = error.message;
+          if (errorMsg.includes('Invalid ply header')) {
+            errorMsg = 'Invalid PLY header. Mögliche Ursachen:<br>' +
+              '• Die Datei ist komprimiert (gzip) – lade unkomprimiert<br>' +
+              '• Falsches Format – nutze .splat oder .sog statt .ply<br>' +
+              '• CORS-Proxy hat Datei beschädigt<br>' +
+              '• Die Datei ist kein gültiges Gaussian Splat';
+          }
+
+          showError(errorMsg);
         }
       }
 
@@ -973,14 +1021,29 @@
             currentAsset = null;
           }
 
-          const buffer = await file.arrayBuffer();
-          const format = detectFormat(file.name, buffer);
+          // Reset rotation
+          modelEuler.set(0, 0, 0);
+          flipY = false;
+          flipZ = false;
+          updateRotationUI();
+
+          let buffer = await file.arrayBuffer();
+          log('Datei gelesen: ' + buffer.byteLength + ' bytes');
+
+          const prepared = await prepareBuffer(buffer, file.name);
+          buffer = prepared.buffer;
+          const format = prepared.format;
           formatInfo.textContent = format.toUpperCase();
 
           const blob = new Blob([buffer], { type: 'application/octet-stream' });
           const blobUrl = URL.createObjectURL(blob);
 
-          const asset = new pc.Asset('splat', 'gsplat', { 
+          let assetType = 'gsplat';
+          if (format === 'sog') assetType = 'gsplat';
+          else if (format === 'splat') assetType = 'gsplat';
+          else if (format === 'ply') assetType = 'gsplat';
+
+          const asset = new pc.Asset('splat', assetType, { 
             url: blobUrl,
             filename: file.name
           });
@@ -994,9 +1057,10 @@
               clearTimeout(timeout);
               resolve();
             });
+
             asset.on('error', function(err) {
               clearTimeout(timeout);
-              reject(new Error('Asset-Fehler: ' + (err || 'Unbekannt')));
+              reject(new Error('Asset-Fehler: ' + (err && err.message ? err.message : 'Unbekannt')));
             });
 
             app.assets.add(asset);
@@ -1008,6 +1072,10 @@
           splatEntity = new pc.Entity('Splat');
           splatEntity.addComponent('gsplat', { asset: asset });
           app.root.addChild(splatEntity);
+
+          // Apply default rotation correction
+          modelEuler.set(-90, 0, 0);
+          applyModelRotation();
 
           const resource = asset.resource;
           if (resource && resource.aabb) {
@@ -1042,15 +1110,44 @@
             }
           }
 
-          loading.style.opacity = '0';
-          setTimeout(function() {
-            loading.style.display = 'none';
-          }, 500);
+          showSuccess('Splat geladen!');
 
         } catch (error) {
           console.error(error);
-          showError('Fehler: ' + error.message);
+
+          let errorMsg = error.message;
+          if (errorMsg.includes('Invalid ply header')) {
+            errorMsg = 'Invalid PLY header. Die Datei ist möglicherweise:<br>' +
+              '• Gzip-komprimiert (nicht unterstützt)<br>' +
+              '• Ein Standard-PLY ohne Gaussian-Daten<br>' +
+              '• Beschädigt oder unvollständig';
+          }
+
+          showError(errorMsg);
         }
+      }
+
+      function updateRotationUI() {
+        document.querySelectorAll('.rot-btn').forEach(function(btn) {
+          btn.classList.remove('active');
+        });
+
+        if (modelEuler.x === 0 && modelEuler.y === 0 && modelEuler.z === 0) {
+          document.getElementById('rotNone').classList.add('active');
+        } else if (modelEuler.x === 90 && modelEuler.y === 0 && modelEuler.z === 0) {
+          document.getElementById('rotX90').classList.add('active');
+        } else if (modelEuler.x === 180 && modelEuler.y === 0 && modelEuler.z === 0) {
+          document.getElementById('rotX180').classList.add('active');
+        } else if (modelEuler.x === -90 && modelEuler.y === 0 && modelEuler.z === 0) {
+          document.getElementById('rotX270').classList.add('active');
+        } else if (modelEuler.x === 0 && modelEuler.y === 0 && modelEuler.z === 90) {
+          document.getElementById('rotZ90').classList.add('active');
+        } else if (modelEuler.x === 0 && modelEuler.y === 0 && modelEuler.z === 180) {
+          document.getElementById('rotZ180').classList.add('active');
+        }
+
+        document.getElementById('flipY').classList.toggle('active', flipY);
+        document.getElementById('flipZ').classList.toggle('active', flipZ);
       }
 
       // Event listeners
@@ -1093,6 +1190,55 @@
         if (camera) {
           camera.fov = val;
         }
+      });
+
+      // Rotation controls
+      document.getElementById('rotNone').addEventListener('click', function() {
+        modelEuler.set(0, 0, 0);
+        applyModelRotation();
+        updateRotationUI();
+      });
+
+      document.getElementById('rotX90').addEventListener('click', function() {
+        modelEuler.set(90, 0, 0);
+        applyModelRotation();
+        updateRotationUI();
+      });
+
+      document.getElementById('rotX180').addEventListener('click', function() {
+        modelEuler.set(180, 0, 0);
+        applyModelRotation();
+        updateRotationUI();
+      });
+
+      document.getElementById('rotX270').addEventListener('click', function() {
+        modelEuler.set(-90, 0, 0);
+        applyModelRotation();
+        updateRotationUI();
+      });
+
+      document.getElementById('rotZ90').addEventListener('click', function() {
+        modelEuler.set(0, 0, 90);
+        applyModelRotation();
+        updateRotationUI();
+      });
+
+      document.getElementById('rotZ180').addEventListener('click', function() {
+        modelEuler.set(0, 0, 180);
+        applyModelRotation();
+        updateRotationUI();
+      });
+
+      document.getElementById('flipY').addEventListener('click', function(e) {
+        flipY = !flipY;
+        applyModelRotation();
+        updateRotationUI();
+      });
+
+      document.getElementById('flipZ').addEventListener('click', function(e) {
+        flipZ = !flipZ;
+        applyModelRotation();
+        updateRotationUI();
       });
 
       // Demo buttons
