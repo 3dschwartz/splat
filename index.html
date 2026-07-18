@@ -390,7 +390,6 @@
       viewer = null;
     }
     viewerRoot.innerHTML = '';
-    if (currentObjectUrl){ URL.revokeObjectURL(currentObjectUrl); currentObjectUrl = null; }
   }
 
   function startFpsCounter(){
@@ -514,6 +513,7 @@
 
   btnNew.addEventListener('click', () => {
     disposeViewer();
+    if (currentObjectUrl){ URL.revokeObjectURL(currentObjectUrl); currentObjectUrl = null; }
     emptyState.classList.remove('hidden');
     controls.classList.add('hidden');
     hint.classList.add('hidden');
