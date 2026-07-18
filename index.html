@@ -1,549 +1,887 @@
 <!DOCTYPE html>
 <html lang="de">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Splat Viewer</title>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>3D Gaussian Splat Viewer - PlayCanvas</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: 'Inter', -apple-system, sans-serif; overflow: hidden; background: #0a0a0f; }
 
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+    #app {
+      width: 100%;
+      height: 100vh;
+      position: relative;
+      overflow: hidden;
+    }
 
-<script type="importmap">
-{
-  "imports": {
-    "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
-    "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/",
-    "GaussianSplats3D": "https://unpkg.com/@mkkellogg/gaussian-splats-3d@0.4.6/build/gaussian-splats-3d.module.js"
-  }
-}
-</script>
+    canvas {
+      width: 100%;
+      height: 100%;
+      display: block;
+      outline: none;
+    }
 
-<style>
-  :root{
-    --bg:#4a4d50;
-    --panel:#14181a;
-    --panel-2:#191e20;
-    --border:#262b2e;
-    --text:#e7ebec;
-    --text-dim:#8a9296;
-    --accent:#ff6a2b;
-    --accent-dim:#c9531f;
-    --accent-glow: rgba(255,106,43,0.35);
-    --mono:'IBM Plex Mono', ui-monospace, monospace;
-    --display:'Space Grotesk', sans-serif;
-    --body-font:'Inter', sans-serif;
-  }
+    /* Loading Overlay */
+    #loading {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      background: #0a0a0f;
+      z-index: 50;
+      transition: opacity 0.5s;
+    }
 
-  *{ box-sizing:border-box; }
+    .spinner {
+      width: 48px;
+      height: 48px;
+      border: 3px solid #1a1a2e;
+      border-top-color: #6366f1;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+      margin-bottom: 16px;
+    }
 
-  html,body{
-    margin:0; padding:0; width:100%; height:100%;
-    background:var(--bg); color:var(--text);
-    font-family:var(--body-font);
-    overflow:hidden;
-    -webkit-tap-highlight-color:transparent;
-  }
+    @keyframes spin { to { transform: rotate(360deg); } }
 
-  #viewer-root{
-    position:fixed; inset:0; width:100%; height:100%;
-    background:
-      radial-gradient(circle at 50% 42%, #55585b 0%, #4a4d50 70%);
-  }
-  #viewer-root canvas{ display:block; outline:none; }
+    /* Top Bar */
+    .top-bar {
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      padding: 16px 24px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: linear-gradient(to bottom, rgba(10,10,15,0.9), transparent);
+      z-index: 10;
+      pointer-events: none;
+    }
 
-  /* --- signature element: survey-frame viewfinder brackets --- */
-  .bracket{
-    position:fixed; width:34px; height:34px; pointer-events:none; z-index:20;
-    border-color:var(--accent); opacity:0.85;
-  }
-  .bracket.tl{ top:18px; left:18px; border-top:2px solid; border-left:2px solid; }
-  .bracket.tr{ top:18px; right:18px; border-top:2px solid; border-right:2px solid; }
-  .bracket.bl{ bottom:18px; left:18px; border-bottom:2px solid; border-left:2px solid; }
-  .bracket.br{ bottom:18px; right:18px; border-bottom:2px solid; border-right:2px solid; }
+    .logo-area {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      pointer-events: auto;
+    }
 
-  /* --- top HUD --- */
-  #topbar{
-    position:fixed; top:0; left:0; right:0; z-index:15;
-    display:flex; align-items:flex-start; justify-content:space-between;
-    padding:22px 34px 0 34px; pointer-events:none;
-  }
-  .eyebrow{
-    font-family:var(--mono); font-size:11px; letter-spacing:0.14em;
-    color:var(--accent); text-transform:uppercase; margin:0 0 4px 0;
-  }
-  h1{
-    font-family:var(--display); font-weight:600; font-size:20px;
-    margin:0; letter-spacing:0.01em; color:var(--text);
-  }
-  #topbar .sub{
-    font-family:var(--mono); font-size:11px; color:var(--text-dim);
-    margin-top:2px;
-  }
-  #status-readout{
-    font-family:var(--mono); font-size:11px; color:var(--text-dim);
-    text-align:right; line-height:1.7; padding-top:2px;
-  }
-  #status-readout .val{ color:var(--text); }
-  #status-readout .dot{
-    display:inline-block; width:6px; height:6px; border-radius:50%;
-    background:var(--text-dim); margin-right:6px; position:relative; top:-1px;
-  }
-  #status-readout .dot.live{ background:var(--accent); box-shadow:0 0 8px var(--accent-glow); }
+    .logo-icon {
+      width: 32px;
+      height: 32px;
+      background: #6366f1;
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 700;
+      color: white;
+      font-size: 12px;
+    }
 
-  /* --- empty state / drop zone --- */
-  #empty-state{
-    position:fixed; inset:0; z-index:10;
-    display:flex; align-items:center; justify-content:center;
-    padding:20px;
-  }
-  #empty-state.hidden{ display:none; }
+    .logo-text {
+      color: white;
+      font-size: 16px;
+      font-weight: 600;
+      letter-spacing: -0.02em;
+    }
 
-  #drop-card{
-    width:min(480px, 92vw);
-    background:var(--panel);
-    border:1px solid var(--border);
-    border-radius:2px;
-    padding:32px 30px 26px 30px;
-    position:relative;
-  }
-  #drop-card::before{
-    content:""; position:absolute; top:-1px; left:-1px; width:14px; height:14px;
-    border-top:2px solid var(--accent); border-left:2px solid var(--accent);
-  }
-  #drop-card::after{
-    content:""; position:absolute; bottom:-1px; right:-1px; width:14px; height:14px;
-    border-bottom:2px solid var(--accent); border-right:2px solid var(--accent);
-  }
-  #drop-card.dragover{ border-color:var(--accent); background:#181211; }
+    .top-links {
+      display: flex;
+      gap: 8px;
+      pointer-events: auto;
+    }
 
-  #drop-card .tag{
-    font-family:var(--mono); font-size:10.5px; letter-spacing:0.12em;
-    color:var(--accent); text-transform:uppercase; margin-bottom:10px;
-  }
-  #drop-card h2{
-    font-family:var(--display); font-size:19px; font-weight:600;
-    margin:0 0 10px 0; color:var(--text);
-  }
-  #drop-card p{
-    font-family:var(--body-font); font-size:13.5px; line-height:1.55;
-    color:var(--text-dim); margin:0 0 20px 0;
-  }
-  #drop-card p b{ color:var(--text); font-weight:600; }
+    .btn-link {
+      padding: 8px 16px;
+      background: rgba(255,255,255,0.08);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 8px;
+      color: #e5e7eb;
+      text-decoration: none;
+      font-size: 13px;
+      font-weight: 500;
+      transition: all 0.2s;
+      backdrop-filter: blur(10px);
+    }
 
-  .field-row{ display:flex; gap:8px; margin-bottom:10px; }
-  .field-row input[type=text]{
-    flex:1; min-width:0;
-    background:var(--panel-2); border:1px solid var(--border); color:var(--text);
-    font-family:var(--mono); font-size:12.5px; padding:10px 11px; border-radius:2px;
-  }
-  .field-row input[type=text]::placeholder{ color:#5c6367; }
-  .field-row input[type=text]:focus, button:focus-visible, label.filebtn:focus-within{
-    outline:2px solid var(--accent); outline-offset:1px;
-  }
+    .btn-link:hover {
+      background: rgba(255,255,255,0.15);
+    }
 
-  button, label.filebtn{
-    font-family:var(--body-font); font-weight:600; font-size:12.5px;
-    border-radius:2px; border:1px solid var(--border);
-    background:var(--panel-2); color:var(--text);
-    padding:10px 14px; cursor:pointer; white-space:nowrap;
-    transition:border-color .15s ease, color .15s ease;
-    display:inline-flex; align-items:center; gap:6px;
-  }
-  button:hover, label.filebtn:hover{ border-color:var(--accent); color:var(--accent); }
-  button.primary{
-    background:var(--accent); border-color:var(--accent); color:#180c05;
-  }
-  button.primary:hover{ background:#ff7c42; color:#180c05; }
+    /* Controls Panel */
+    .controls-panel {
+      position: absolute;
+      top: 80px;
+      left: 24px;
+      width: 280px;
+      background: rgba(15,15,25,0.85);
+      border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 16px;
+      padding: 20px;
+      backdrop-filter: blur(20px);
+      z-index: 10;
+      box-shadow: 0 20px 40px rgba(0,0,0,0.4);
+    }
 
-  input[type=file]{ display:none; }
+    .panel-title {
+      color: white;
+      font-size: 14px;
+      font-weight: 600;
+      margin: 0 0 16px 0;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
 
-  .divider-row{
-    display:flex; align-items:center; gap:10px; margin:16px 0 14px 0;
-    font-family:var(--mono); font-size:10px; color:var(--text-dim);
-    letter-spacing:0.1em; text-transform:uppercase;
-  }
-  .divider-row::before, .divider-row::after{
-    content:""; height:1px; flex:1; background:var(--border);
-  }
+    .panel-title-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+    }
 
-  #formats-note{
-    font-family:var(--mono); font-size:10.5px; color:#5c6367; margin-top:16px; line-height:1.6;
-  }
+    .panel-title-dot.purple { background: #6366f1; }
+    .panel-title-dot.green { background: #10b981; }
 
-  #error-line{
-    font-family:var(--mono); font-size:11.5px; color:var(--accent);
-    margin-top:12px; display:none;
-  }
-  #error-line.show{ display:block; }
+    .input-group {
+      margin-bottom: 16px;
+    }
 
-  /* --- bottom control cluster --- */
-  #bottombar{
-    position:fixed; bottom:0; left:0; right:0; z-index:15;
-    display:flex; align-items:flex-end; justify-content:space-between;
-    padding:0 34px 22px 34px; gap:16px;
-  }
-  #controls{
-    display:flex; gap:8px; flex-wrap:wrap;
-  }
-  #controls button{ padding:9px 13px; font-size:12px; }
-  #controls.hidden{ display:none; }
+    .input-label {
+      display: block;
+      color: #9ca3af;
+      font-size: 12px;
+      margin-bottom: 8px;
+      font-weight: 500;
+    }
 
-  #hint{
-    font-family:var(--mono); font-size:10.5px; color:var(--text-dim);
-    text-align:right; line-height:1.6; max-width:280px;
-  }
-  #hint.hidden{ display:none; }
+    .file-btn {
+      width: 100%;
+      padding: 12px;
+      background: rgba(99,102,241,0.15);
+      border: 1px dashed #6366f1;
+      border-radius: 10px;
+      color: #818cf8;
+      font-size: 13px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.2s;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      font-family: inherit;
+    }
 
-  /* --- loading state --- */
-  #loading-state{
-    position:fixed; inset:0; z-index:11;
-    display:flex; align-items:center; justify-content:center;
-    padding:20px; background:rgba(30,32,34,0.72);
-  }
-  #loading-state.hidden{ display:none; }
-  #loading-card{
-    width:min(440px, 90vw);
-    background:var(--panel); border:1px solid var(--border); border-radius:2px;
-    padding:28px 26px; text-align:center;
-  }
-  .spinner{
-    width:26px; height:26px; margin:0 auto 16px auto;
-    border:2px solid var(--border); border-top-color:var(--accent);
-    border-radius:50%; animation:spin 0.8s linear infinite;
-  }
-  @keyframes spin{ to{ transform:rotate(360deg); } }
-  #loading-title{
-    font-family:var(--display); font-weight:600; font-size:15px; color:var(--text); margin-bottom:6px;
-  }
-  #loading-detail{
-    font-family:var(--mono); font-size:11.5px; color:var(--text-dim);
-  }
-  #loading-slow{
-    font-family:var(--body-font); font-size:12.5px; color:var(--accent);
-    margin-top:16px; line-height:1.5; text-align:left;
-  }
-  #loading-slow.hidden{ display:none; }
+    .file-btn:hover {
+      background: rgba(99,102,241,0.25);
+    }
 
-  @media (max-width: 640px){
-    #topbar{ padding:16px 16px 0 16px; flex-direction:column; gap:8px; }
-    #status-readout{ text-align:left; }
-    .bracket{ width:22px; height:22px; }
-    .bracket.tl,.bracket.tr{ top:12px; }
-    .bracket.bl,.bracket.br{ bottom:12px; }
-    .bracket.tl,.bracket.bl{ left:12px; }
-    .bracket.tr,.bracket.br{ right:12px; }
-    #bottombar{ padding:0 16px 16px 16px; flex-direction:column; align-items:stretch; }
-    #hint{ text-align:left; max-width:none; order:2; }
-    #controls{ order:1; }
-    #drop-card{ padding:24px 20px 20px 20px; }
-    .field-row{ flex-direction:column; }
+    .url-row {
+      display: flex;
+      gap: 8px;
+    }
+
+    .url-input {
+      flex: 1;
+      padding: 10px 12px;
+      background: rgba(255,255,255,0.05);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 8px;
+      color: white;
+      font-size: 13px;
+      outline: none;
+      transition: border-color 0.2s;
+      font-family: inherit;
+    }
+
+    .url-input:focus {
+      border-color: #6366f1;
+    }
+
+    .url-input::placeholder {
+      color: #4b5563;
+    }
+
+    .btn-primary {
+      padding: 10px 16px;
+      background: #6366f1;
+      border: none;
+      border-radius: 8px;
+      color: white;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+      font-family: inherit;
+    }
+
+    .btn-primary:hover {
+      background: #818cf8;
+    }
+
+    .divider {
+      border-top: 1px solid rgba(255,255,255,0.08);
+      padding-top: 16px;
+      margin-top: 16px;
+    }
+
+    .btn-row {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 12px;
+    }
+
+    .btn-secondary {
+      flex: 1;
+      padding: 8px;
+      background: rgba(255,255,255,0.05);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 8px;
+      color: #d1d5db;
+      font-size: 12px;
+      cursor: pointer;
+      transition: all 0.2s;
+      font-family: inherit;
+    }
+
+    .btn-secondary:hover {
+      background: rgba(255,255,255,0.1);
+    }
+
+    .btn-secondary.active {
+      background: rgba(99,102,241,0.3);
+      border-color: #6366f1;
+      color: #818cf8;
+    }
+
+    .slider-group {
+      margin-bottom: 12px;
+    }
+
+    .slider-label {
+      display: flex;
+      justify-content: space-between;
+      color: #9ca3af;
+      font-size: 12px;
+      margin-bottom: 6px;
+    }
+
+    input[type="range"] {
+      -webkit-appearance: none;
+      width: 100%;
+      height: 4px;
+      background: rgba(255,255,255,0.1);
+      border-radius: 2px;
+      outline: none;
+    }
+
+    input[type="range"]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      width: 14px;
+      height: 14px;
+      background: #6366f1;
+      border-radius: 50%;
+      cursor: pointer;
+    }
+
+    input[type="range"]::-moz-range-thumb {
+      width: 14px;
+      height: 14px;
+      background: #6366f1;
+      border-radius: 50%;
+      cursor: pointer;
+      border: none;
+    }
+
+    .bg-colors {
+      display: flex;
+      gap: 6px;
+    }
+
+    .bg-btn {
+      width: 28px;
+      height: 28px;
+      border-radius: 6px;
+      border: 2px solid transparent;
+      cursor: pointer;
+      transition: border-color 0.2s;
+    }
+
+    .bg-btn.active {
+      border-color: #6366f1;
+    }
+
+    .stats {
+      margin-top: 16px;
+      padding-top: 16px;
+      border-top: 1px solid rgba(255,255,255,0.08);
+      font-size: 11px;
+      color: #6b7280;
+      line-height: 1.6;
+      display: none;
+    }
+
+    .stats.visible {
+      display: block;
+    }
+
+    .stats span {
+      color: #9ca3af;
+    }
+
+    /* Bottom Info */
+    .bottom-info {
+      position: absolute;
+      bottom: 24px;
+      left: 24px;
+      right: 24px;
+      display: flex;
+      justify-content: center;
+      z-index: 10;
+      pointer-events: none;
+    }
+
+    .info-box {
+      background: rgba(15,15,25,0.8);
+      border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 12px;
+      padding: 10px 20px;
+      backdrop-filter: blur(20px);
+      pointer-events: auto;
+    }
+
+    .info-box p {
+      color: #6b7280;
+      font-size: 12px;
+      margin: 0;
+      text-align: center;
+    }
+
+    .info-box b {
+      color: #9ca3af;
+    }
+
+    .error-msg {
+      color: #ef4444;
+      text-align: center;
+      padding: 20px;
+    }
+
+    .success-msg {
+      color: #10b981;
+      text-align: center;
+      padding: 20px;
+    }
+  </style>
+  <script type="importmap">
+  {
+    "imports": {
+      "playcanvas": "https://cdn.jsdelivr.net/npm/playcanvas@2.6.2/+esm"
+    }
   }
-</style>
+  </script>
+<base target="_blank">
 </head>
 <body>
+  <div id="app">
+    <canvas id="canvas"></canvas>
 
-  <div id="viewer-root"></div>
-
-  <div class="bracket tl"></div>
-  <div class="bracket tr"></div>
-  <div class="bracket bl"></div>
-  <div class="bracket br"></div>
-
-  <div id="topbar">
-    <div>
-      <p class="eyebrow">Gaussian Splat // Betrachter</p>
-      <h1>Splat Viewer</h1>
-      <div class="sub">nur Darstellung · kein Editor</div>
-    </div>
-    <div id="status-readout">
-      <div><span class="dot" id="status-dot"></span><span id="status-text">Kein Scan geladen</span></div>
-      <div>Format: <span class="val" id="status-format">–</span></div>
-      <div>FPS: <span class="val" id="status-fps">–</span></div>
-    </div>
-  </div>
-
-  <div id="empty-state">
-    <div id="drop-card">
-      <div class="tag">Scan laden</div>
-      <h2>Datei ablegen oder auswählen</h2>
-      <p>Unterstützt werden <b>.ply</b>, <b>.splat</b> und <b>.ksplat</b>. Die Datei bleibt lokal im Browser — es wird nichts hochgeladen.</p>
-
-      <div class="field-row">
-        <label class="filebtn" for="file-input">📂 Datei wählen</label>
-        <input type="file" id="file-input" accept=".ply,.splat,.ksplat">
-      </div>
-
-      <div class="divider-row">oder per URL</div>
-
-      <div class="field-row">
-        <input type="text" id="url-input" placeholder="https://.../scan.ksplat" autocomplete="off" spellcheck="false">
-        <button class="primary" id="url-load-btn">Laden</button>
-      </div>
-      <div id="formats-note">Hinweis: Beim Laden per URL muss der Server CORS erlauben, sonst blockiert der Browser den Zugriff. .spz wird von dieser Bibliothek aktuell nicht unterstützt.</div>
-      <div id="error-line"></div>
-    </div>
-  </div>
-
-  <div id="loading-state" class="hidden">
-    <div id="loading-card">
+    <!-- Loading Overlay -->
+    <div id="loading">
       <div class="spinner"></div>
-      <div id="loading-title">Lädt Scan…</div>
-      <div id="loading-detail">–</div>
-      <div id="loading-slow" class="hidden">Das dauert schon ungewöhnlich lange. Bei sehr großen Dateien (mehrere hundert MB) oder einem unerwarteten .splat-Format kann das Parsen hängen bleiben. Konsole (F12) prüfen — dort erscheinen Fehler, die hier sonst nicht ankommen.</div>
+      <p style="color: #6b7280; font-size: 14px; letter-spacing: 0.05em;">PlayCanvas 3DGS Viewer</p>
+    </div>
+
+    <!-- Top Bar -->
+    <div class="top-bar">
+      <div class="logo-area">
+        <div class="logo-icon">3D</div>
+        <h1 class="logo-text">Gaussian Splat Viewer</h1>
+      </div>
+      <div class="top-links">
+        <a href="https://github.com" target="_blank" class="btn-link">GitHub</a>
+      </div>
+    </div>
+
+    <!-- Controls Panel -->
+    <div class="controls-panel">
+      <h3 class="panel-title">
+        <span class="panel-title-dot purple"></span>
+        Datei laden
+      </h3>
+
+      <div class="input-group">
+        <label class="input-label">Lokale Datei (.ply / .splat / .sog)</label>
+        <input type="file" id="fileInput" accept=".ply,.splat,.sog" style="display: none;">
+        <button class="file-btn" onclick="document.getElementById('fileInput').click()">
+          <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+            <polyline points="17 8 12 3 7 8"/>
+            <line x1="12" y1="3" x2="12" y2="15"/>
+          </svg>
+          Datei auswählen
+        </button>
+      </div>
+
+      <div class="input-group">
+        <label class="input-label">oder URL eingeben</label>
+        <div class="url-row">
+          <input type="text" id="urlInput" class="url-input" placeholder="https://... .ply">
+          <button id="loadUrl" class="btn-primary">Laden</button>
+        </div>
+      </div>
+
+      <div class="divider">
+        <h3 class="panel-title">
+          <span class="panel-title-dot green"></span>
+          Ansicht
+        </h3>
+
+        <div class="btn-row">
+          <button id="resetCam" class="btn-secondary">Reset Kamera</button>
+          <button id="toggleAuto" class="btn-secondary">Auto-Rotate</button>
+        </div>
+
+        <div class="slider-group">
+          <div class="slider-label">
+            <span>FOV</span>
+            <span id="fovVal">60°</span>
+          </div>
+          <input type="range" id="fovSlider" min="30" max="120" step="1" value="60">
+        </div>
+
+        <div>
+          <label class="input-label">Hintergrund</label>
+          <div class="bg-colors">
+            <button class="bg-btn active" data-bg="#0a0a0f" style="background: #0a0a0f;"></button>
+            <button class="bg-btn" data-bg="#1a1a2e" style="background: #1a1a2e;"></button>
+            <button class="bg-btn" data-bg="#ffffff" style="background: #ffffff;"></button>
+            <button class="bg-btn" data-bg="#87ceeb" style="background: #87ceeb;"></button>
+          </div>
+        </div>
+      </div>
+
+      <div id="stats" class="stats">
+        <div>Punkte: <span id="pointCount">-</span></div>
+        <div>FPS: <span id="fpsCounter">-</span></div>
+        <div>Renderer: <span id="rendererInfo">-</span></div>
+      </div>
+    </div>
+
+    <!-- Bottom Info -->
+    <div class="bottom-info">
+      <div class="info-box">
+        <p>
+          <b>Linksklick + Ziehen</b> rotieren · <b>Rechtsklick + Ziehen</b> verschieben · <b>Scrollen</b> zoomen
+        </p>
+      </div>
     </div>
   </div>
 
-  <div id="bottombar">
-    <div id="controls" class="hidden">
-      <button id="btn-reset">⟲ Ansicht zurücksetzen</button>
-      <button id="btn-flip">↕ Hochachse spiegeln</button>
-      <button id="btn-perf">⚡ Performance: An</button>
-      <button id="btn-new">📂 Neuer Scan</button>
-    </div>
-    <div id="hint">Ziehen: rotieren · Rechtsklick ziehen: verschieben · Scrollen: zoomen</div>
-  </div>
+  <script type="module">
+    import {
+      Application, Asset, AssetListLoader, Entity, 
+      FILLMODE_FILL_WINDOW, RESOLUTION_AUTO,
+      Color, Vec3, Quat, Mat4, BoundingBox,
+      Script, Camera, GSplatComponent
+    } from 'playcanvas';
 
-<script type="module">
-  import * as THREE from 'three';
-  import * as GaussianSplats3D from 'GaussianSplats3D';
+    const canvas = document.getElementById('canvas');
+    const loading = document.getElementById('loading');
+    const stats = document.getElementById('stats');
+    const pointCount = document.getElementById('pointCount');
+    const fpsCounter = document.getElementById('fpsCounter');
+    const rendererInfo = document.getElementById('rendererInfo');
 
-  const viewerRoot   = document.getElementById('viewer-root');
-  const emptyState   = document.getElementById('empty-state');
-  const dropCard     = document.getElementById('drop-card');
-  const fileInput    = document.getElementById('file-input');
-  const urlInput     = document.getElementById('url-input');
-  const urlLoadBtn   = document.getElementById('url-load-btn');
-  const errorLine    = document.getElementById('error-line');
-  const controls     = document.getElementById('controls');
-  const hint         = document.getElementById('hint');
-  const statusDot    = document.getElementById('status-dot');
-  const statusText   = document.getElementById('status-text');
-  const statusFormat = document.getElementById('status-format');
-  const statusFps    = document.getElementById('status-fps');
-  const btnReset     = document.getElementById('btn-reset');
-  const btnFlip      = document.getElementById('btn-flip');
-  const btnPerf      = document.getElementById('btn-perf');
-  const btnNew       = document.getElementById('btn-new');
-  const loadingState = document.getElementById('loading-state');
-  const loadingDetail= document.getElementById('loading-detail');
-  const loadingSlow  = document.getElementById('loading-slow');
+    let app, camera, splatEntity, cameraControls;
+    let autoRotate = false;
+    let frameCount = 0;
+    let lastTime = performance.now();
+    let currentAsset = null;
+    let initialCameraPos = new Vec3(0, 0, 2.5);
+    let initialCameraTarget = new Vec3(0, 0, 0);
 
-  let viewer = null;
-  let currentUp = [0, -1, 0];
-  let currentObjectUrl = null;
-  let fpsRafId = null;
-  let slowTimerId = null;
+    // Create PlayCanvas application
+    async function init() {
+      try {
+        app = new Application(canvas, {
+          graphicsDeviceOptions: {
+            antialias: false,
+            alpha: false
+          }
+        });
 
-  // Surface errors that would otherwise vanish silently (e.g. inside a worker
-  // spawned by the splat loader), so "nothing happens" always shows something.
-  window.addEventListener('error', (e) => {
-    showError('Unerwarteter Fehler: ' + (e.message || 'siehe Konsole (F12)'));
-    endLoading(false);
-  });
-  window.addEventListener('unhandledrejection', (e) => {
-    const msg = e.reason && e.reason.message ? e.reason.message : String(e.reason);
-    showError('Unerwarteter Fehler: ' + msg);
-    endLoading(false);
-  });
+        app.setCanvasFillMode(FILLMODE_FILL_WINDOW);
+        app.setCanvasResolution(RESOLUTION_AUTO);
+        app.start();
 
-  function beginLoading(label, sizeBytes){
-    clearError();
-    loadingState.classList.remove('hidden');
-    emptyState.classList.add('hidden');
-    loadingDetail.textContent = label + (sizeBytes ? ' · ' + (sizeBytes / 1048576).toFixed(1) + ' MB' : '');
-    loadingSlow.classList.add('hidden');
-    if (slowTimerId) clearTimeout(slowTimerId);
-    slowTimerId = setTimeout(() => loadingSlow.classList.remove('hidden'), 12000);
-  }
-  function endLoading(success){
-    loadingState.classList.add('hidden');
-    if (slowTimerId){ clearTimeout(slowTimerId); slowTimerId = null; }
-    if (!success) emptyState.classList.remove('hidden');
-  }
+        window.addEventListener('resize', () => app.resizeCanvas());
 
-  function showError(msg){
-    errorLine.textContent = msg;
-    errorLine.classList.add('show');
-  }
-  function clearError(){
-    errorLine.textContent = '';
-    errorLine.classList.remove('show');
-  }
+        // Set background color
+        app.scene.ambientLight = new Color(0.5, 0.5, 0.5);
 
-  function setStatus(text, live, format){
-    statusText.textContent = text;
-    statusDot.classList.toggle('live', !!live);
-    if (format) statusFormat.textContent = format;
-  }
+        // Create camera
+        const cameraEntity = new Entity('Camera');
+        cameraEntity.setPosition(0, 0, 2.5);
+        cameraEntity.addComponent('camera', {
+          clearColor: new Color(0.04, 0.04, 0.06),
+          fov: 60
+        });
+        app.root.addChild(cameraEntity);
+        camera = cameraEntity.camera;
 
-  function formatFromName(name){
-    const ext = name.split('.').pop().toLowerCase();
-    if (ext === 'ply')    return { format: GaussianSplats3D.SceneFormat.Ply,    label: 'PLY' };
-    if (ext === 'splat')  return { format: GaussianSplats3D.SceneFormat.Splat,  label: 'SPLAT' };
-    if (ext === 'ksplat') return { format: GaussianSplats3D.SceneFormat.KSplat, label: 'KSPLAT' };
-    return null;
-  }
+        // Create light
+        const light = new Entity('Light');
+        light.setEulerAngles(45, 30, 0);
+        light.addComponent('light', {
+          type: 'directional',
+          color: new Color(1, 1, 1),
+          intensity: 1
+        });
+        app.root.addChild(light);
 
-  function disposeViewer(){
-    if (fpsRafId){ cancelAnimationFrame(fpsRafId); fpsRafId = null; }
-    if (viewer){
-      try { viewer.dispose(); } catch(e) { /* best effort */ }
-      viewer = null;
-    }
-    viewerRoot.innerHTML = '';
-  }
+        // Load camera controls script from CDN
+        await loadCameraControls();
 
-  function startFpsCounter(){
-    let last = performance.now();
-    let frames = 0;
-    let acc = 0;
-    function tick(now){
-      const dt = now - last;
-      last = now;
-      frames++; acc += dt;
-      if (acc >= 500){
-        statusFps.textContent = Math.round((frames * 1000) / acc);
-        frames = 0; acc = 0;
+        // Try loading demo splat
+        const demoUrl = 'https://developer.playcanvas.com/assets/toy-cat.sog';
+        try {
+          await loadSplatFromUrl(demoUrl, false);
+        } catch(e) {
+          console.log('Demo load failed:', e);
+          loading.style.opacity = '0';
+          setTimeout(() => loading.style.display = 'none', 500);
+        }
+
+        // Start render loop with FPS counter
+        app.on('update', (dt) => {
+          frameCount++;
+          const now = performance.now();
+          if (now - lastTime >= 1000) {
+            fpsCounter.textContent = frameCount;
+            frameCount = 0;
+            lastTime = now;
+          }
+
+          if (autoRotate && splatEntity) {
+            splatEntity.rotate(0, 10 * dt, 0);
+          }
+        });
+
+        // Show renderer info
+        const device = app.graphicsDevice;
+        rendererInfo.textContent = device.webgl2 ? 'WebGL2' : (device.isWebGPU ? 'WebGPU' : 'WebGL');
+
+      } catch (error) {
+        console.error('Init error:', error);
+        loading.innerHTML = '<p class="error-msg">Fehler: ' + error.message + '</p>';
       }
-      fpsRafId = requestAnimationFrame(tick);
     }
-    fpsRafId = requestAnimationFrame(tick);
-  }
 
-  let perfMode = true; // ignoreDevicePixelRatio: renders at 1x instead of full retina/HiDPI res
+    async function loadCameraControls() {
+      try {
+        const response = await fetch('https://cdn.jsdelivr.net/npm/playcanvas@2.6.2/scripts/esm/camera-controls.mjs');
+        const code = await response.text();
 
-  function createViewer(){
-    disposeViewer();
-    viewer = new GaussianSplats3D.Viewer({
-      rootElement: viewerRoot,
-      cameraUp: currentUp,
-      initialCameraPosition: [-1, -3, 5],
-      initialCameraLookAt: [0, 0, 0],
-      useBuiltInControls: true,
-      selfDrivenMode: true,
-      // GitHub Pages sends no COOP/COEP headers, so SharedArrayBuffer/cross-origin
-      // isolation is unavailable -> sharedMemoryForWorkers must stay false. The
-      // library explicitly recommends keeping gpuAcceleratedSort false in that
-      // case too, otherwise distance data gets copied to/from the GPU every
-      // frame without the shared-memory fast path -> net loss, not a gain.
-      sharedMemoryForWorkers: false,
-      gpuAcceleratedSort: false,
-      ignoreDevicePixelRatio: perfMode
+        // Create a blob URL for the module
+        const blob = new Blob([code], { type: 'application/javascript' });
+        const url = URL.createObjectURL(blob);
+
+        const module = await import(url);
+
+        // Register the script
+        if (module.default) {
+          app.scripts.registerScript(module.default, 'cameraControls');
+        }
+
+        // Add camera controls to camera entity
+        const cameraEntity = app.root.findByName('Camera');
+        if (cameraEntity && !cameraEntity.script) {
+          cameraEntity.addComponent('script');
+        }
+        if (cameraEntity && cameraEntity.script) {
+          cameraEntity.script.create('cameraControls');
+        }
+
+      } catch (e) {
+        console.log('Camera controls load failed, using fallback:', e);
+        setupFallbackControls();
+      }
+    }
+
+    function setupFallbackControls() {
+      // Simple orbit controls fallback
+      let isDragging = false;
+      let lastX = 0, lastY = 0;
+      let rotX = 0, rotY = 0;
+      let distance = 2.5;
+
+      canvas.addEventListener('mousedown', (e) => {
+        isDragging = true;
+        lastX = e.clientX;
+        lastY = e.clientY;
+      });
+
+      canvas.addEventListener('mousemove', (e) => {
+        if (!isDragging) return;
+        const dx = e.clientX - lastX;
+        const dy = e.clientY - lastY;
+        rotY -= dx * 0.005;
+        rotX -= dy * 0.005;
+        rotX = Math.max(-Math.PI/2, Math.min(Math.PI/2, rotX));
+        updateCameraPosition();
+        lastX = e.clientX;
+        lastY = e.clientY;
+      });
+
+      canvas.addEventListener('mouseup', () => isDragging = false);
+      canvas.addEventListener('mouseleave', () => isDragging = false);
+
+      canvas.addEventListener('wheel', (e) => {
+        distance *= 1 + e.deltaY * 0.001;
+        distance = Math.max(0.1, Math.min(50, distance));
+        updateCameraPosition();
+        e.preventDefault();
+      });
+
+      function updateCameraPosition() {
+        const cameraEntity = app.root.findByName('Camera');
+        if (!cameraEntity) return;
+        const x = distance * Math.sin(rotY) * Math.cos(rotX);
+        const y = distance * Math.sin(rotX);
+        const z = distance * Math.cos(rotY) * Math.cos(rotX);
+        cameraEntity.setPosition(x, y, z);
+        cameraEntity.lookAt(new Vec3(0, 0, 0));
+      }
+    }
+
+    async function loadSplatFromUrl(url, showLoading = true) {
+      if (showLoading) {
+        loading.style.display = 'flex';
+        loading.style.opacity = '1';
+        loading.innerHTML = '<div class="spinner"></div><p style="color: #6b7280; font-size: 14px;">Lade Splat...</p>';
+      }
+
+      try {
+        // Remove existing splat
+        if (splatEntity) {
+          splatEntity.destroy();
+          splatEntity = null;
+        }
+        if (currentAsset) {
+          currentAsset.unload();
+          currentAsset = null;
+        }
+
+        // Determine asset type from extension
+        const ext = url.split('.').pop().toLowerCase().split('?')[0];
+        let assetType = 'gsplat';
+        if (ext === 'ply') assetType = 'gsplat'; // PLY also handled as gsplat
+
+        // Create and load asset
+        const asset = new Asset('splat', assetType, { url: url });
+
+        await new Promise((resolve, reject) => {
+          asset.on('load', resolve);
+          asset.on('error', reject);
+          app.assets.add(asset);
+          app.assets.load(asset);
+        });
+
+        currentAsset = asset;
+
+        // Create splat entity
+        splatEntity = new Entity('Splat');
+        splatEntity.addComponent('gsplat', { asset: asset });
+        app.root.addChild(splatEntity);
+
+        // Center camera on splat
+        const resource = asset.resource;
+        if (resource && resource.aabb) {
+          const aabb = resource.aabb;
+          const center = new Vec3();
+          aabb.getCenter(center);
+          const size = new Vec3();
+          aabb.getHalfExtents(size);
+          const maxDim = Math.max(size.x, size.y, size.z) * 2;
+          const dist = maxDim * 1.5;
+
+          initialCameraTarget = center.clone();
+          initialCameraPos = new Vec3(center.x, center.y + maxDim * 0.3, center.z + dist);
+
+          const cameraEntity = app.root.findByName('Camera');
+          if (cameraEntity) {
+            cameraEntity.setPosition(initialCameraPos.x, initialCameraPos.y, initialCameraPos.z);
+            cameraEntity.lookAt(center);
+          }
+
+          // Update stats
+          stats.classList.add('visible');
+          if (resource.vertexCount !== undefined) {
+            pointCount.textContent = resource.vertexCount.toLocaleString();
+          } else if (resource.numVertices !== undefined) {
+            pointCount.textContent = resource.numVertices.toLocaleString();
+          } else {
+            pointCount.textContent = 'Unknown';
+          }
+        }
+
+        loading.style.opacity = '0';
+        setTimeout(() => loading.style.display = 'none', 500);
+
+      } catch (error) {
+        console.error('Load error:', error);
+        loading.innerHTML = '<p class="error-msg">Fehler: ' + error.message + '</p>';
+        setTimeout(() => {
+          loading.style.display = 'none';
+        }, 3000);
+      }
+    }
+
+    async function loadSplatFromFile(file) {
+      loading.style.display = 'flex';
+      loading.style.opacity = '1';
+      loading.innerHTML = '<div class="spinner"></div><p style="color: #6b7280; font-size: 14px;">Lade ' + file.name + '...</p>';
+
+      try {
+        if (splatEntity) {
+          splatEntity.destroy();
+          splatEntity = null;
+        }
+        if (currentAsset) {
+          currentAsset.unload();
+          currentAsset = null;
+        }
+
+        const buffer = await file.arrayBuffer();
+        const ext = file.name.split('.').pop().toLowerCase();
+        let assetType = 'gsplat';
+
+        // Create blob URL
+        const blob = new Blob([buffer], { type: 'application/octet-stream' });
+        const url = URL.createObjectURL(blob);
+
+        const asset = new Asset('splat', assetType, { url: url, filename: file.name });
+
+        await new Promise((resolve, reject) => {
+          asset.on('load', resolve);
+          asset.on('error', reject);
+          app.assets.add(asset);
+          app.assets.load(asset);
+        });
+
+        currentAsset = asset;
+
+        splatEntity = new Entity('Splat');
+        splatEntity.addComponent('gsplat', { asset: asset });
+        app.root.addChild(splatEntity);
+
+        // Center camera
+        const resource = asset.resource;
+        if (resource && resource.aabb) {
+          const aabb = resource.aabb;
+          const center = new Vec3();
+          aabb.getCenter(center);
+          const size = new Vec3();
+          aabb.getHalfExtents(size);
+          const maxDim = Math.max(size.x, size.y, size.z) * 2;
+          const dist = maxDim * 1.5;
+
+          initialCameraTarget = center.clone();
+          initialCameraPos = new Vec3(center.x, center.y + maxDim * 0.3, center.z + dist);
+
+          const cameraEntity = app.root.findByName('Camera');
+          if (cameraEntity) {
+            cameraEntity.setPosition(initialCameraPos.x, initialCameraPos.y, initialCameraPos.z);
+            cameraEntity.lookAt(center);
+          }
+
+          stats.classList.add('visible');
+          if (resource.vertexCount !== undefined) {
+            pointCount.textContent = resource.vertexCount.toLocaleString();
+          } else if (resource.numVertices !== undefined) {
+            pointCount.textContent = resource.numVertices.toLocaleString();
+          } else {
+            pointCount.textContent = 'Unknown';
+          }
+        }
+
+        loading.style.opacity = '0';
+        setTimeout(() => loading.style.display = 'none', 500);
+
+      } catch (error) {
+        console.error('File load error:', error);
+        loading.innerHTML = '<p class="error-msg">Fehler: ' + error.message + '</p>';
+        setTimeout(() => loading.style.display = 'none', 3000);
+      }
+    }
+
+    // Event listeners
+    document.getElementById('fileInput').addEventListener('change', (e) => {
+      const file = e.target.files[0];
+      if (file) loadSplatFromFile(file);
     });
-    return viewer;
-  }
 
-  let lastLoad = null; // { path, opts, formatLabel, sizeBytes } — used to reload on perf toggle
+    document.getElementById('loadUrl').addEventListener('click', () => {
+      const url = document.getElementById('urlInput').value.trim();
+      if (url) loadSplatFromUrl(url);
+    });
 
-  async function loadScene(path, opts, formatLabel, sizeBytes){
-    lastLoad = { path, opts, formatLabel, sizeBytes };
-    setStatus('Lädt…', true, formatLabel || '–');
-    beginLoading(formatLabel || 'Datei', sizeBytes);
-    createViewer();
-    try {
-      await viewer.addSplatScene(path, Object.assign({
-        showLoadingUI: false,
-        splatAlphaRemovalThreshold: 5
-      }, opts || {}));
-      viewer.start();
-      setStatus('Scan aktiv', true);
-      controls.classList.remove('hidden');
-      hint.classList.remove('hidden');
-      startFpsCounter();
-      endLoading(true);
-    } catch (err){
-      console.error(err);
-      setStatus('Fehler beim Laden', false, formatLabel || '–');
-      showError('Datei konnte nicht geladen werden: ' + (err && err.message ? err.message : 'unbekannter Fehler — Konsole (F12) prüfen'));
-      controls.classList.add('hidden');
-      endLoading(false);
-    }
-  }
+    document.getElementById('urlInput').addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        const url = document.getElementById('urlInput').value.trim();
+        if (url) loadSplatFromUrl(url);
+      }
+    });
 
-  function loadFromFile(file){
-    const meta = formatFromName(file.name);
-    if (!meta){
-      showError('Nicht unterstütztes Format: .' + file.name.split('.').pop());
-      return;
-    }
-    if (currentObjectUrl) URL.revokeObjectURL(currentObjectUrl);
-    currentObjectUrl = URL.createObjectURL(file);
-    loadScene(currentObjectUrl, { format: meta.format }, meta.label, file.size);
-  }
+    document.getElementById('resetCam').addEventListener('click', () => {
+      const cameraEntity = app.root.findByName('Camera');
+      if (cameraEntity) {
+        cameraEntity.setPosition(initialCameraPos.x, initialCameraPos.y, initialCameraPos.z);
+        cameraEntity.lookAt(initialCameraTarget);
+      }
+    });
 
-  function loadFromUrl(url){
-    if (!url) return;
-    const meta = formatFromName(url.split('?')[0].split('#')[0]);
-    loadScene(url, meta ? { format: meta.format } : {}, meta ? meta.label : 'URL');
-  }
+    document.getElementById('toggleAuto').addEventListener('click', (e) => {
+      autoRotate = !autoRotate;
+      e.target.classList.toggle('active', autoRotate);
+    });
 
-  // --- file input ---
-  fileInput.addEventListener('change', (e) => {
-    const file = e.target.files && e.target.files[0];
-    if (file) loadFromFile(file);
-  });
+    document.getElementById('fovSlider').addEventListener('input', (e) => {
+      const val = parseInt(e.target.value);
+      document.getElementById('fovVal').textContent = val + '°';
+      if (camera) {
+        camera.fov = val;
+      }
+    });
 
-  // --- url input ---
-  urlLoadBtn.addEventListener('click', () => loadFromUrl(urlInput.value.trim()));
-  urlInput.addEventListener('keydown', (e) => {
-    if (e.key === 'Enter') loadFromUrl(urlInput.value.trim());
-  });
+    // Background color
+    document.querySelectorAll('.bg-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const bg = btn.dataset.bg;
+        document.getElementById('app').style.background = bg;
 
-  // --- drag & drop ---
-  ['dragenter','dragover'].forEach(evt =>
-    dropCard.addEventListener(evt, (e) => { e.preventDefault(); dropCard.classList.add('dragover'); })
-  );
-  ['dragleave','drop'].forEach(evt =>
-    dropCard.addEventListener(evt, (e) => { e.preventDefault(); dropCard.classList.remove('dragover'); })
-  );
-  dropCard.addEventListener('drop', (e) => {
-    const file = e.dataTransfer.files && e.dataTransfer.files[0];
-    if (file) loadFromFile(file);
-  });
-  // allow dropping anywhere on the page, not just the card
-  window.addEventListener('dragover', (e) => e.preventDefault());
-  window.addEventListener('drop', (e) => {
-    e.preventDefault();
-    const file = e.dataTransfer.files && e.dataTransfer.files[0];
-    if (file) loadFromFile(file);
-  });
+        // Convert hex to RGB for PlayCanvas clear color
+        const r = parseInt(bg.slice(1, 3), 16) / 255;
+        const g = parseInt(bg.slice(3, 5), 16) / 255;
+        const b = parseInt(bg.slice(5, 7), 16) / 255;
+        if (camera) {
+          camera.clearColor = new Color(r, g, b);
+        }
 
-  // --- controls ---
-  btnReset.addEventListener('click', () => {
-    if (viewer && viewer.camera && viewer.controls){
-      viewer.camera.position.set(-1, -3, 5);
-      viewer.camera.lookAt(0, 0, 0);
-      if (viewer.controls.target) viewer.controls.target.set(0,0,0);
-    }
-  });
+        document.querySelectorAll('.bg-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+      });
+    });
 
-  btnFlip.addEventListener('click', () => {
-    currentUp = currentUp.map(v => -v);
-    if (viewer && viewer.camera){
-      viewer.camera.up.set(currentUp[0], currentUp[1], currentUp[2]);
-    }
-  });
-
-  btnPerf.addEventListener('click', () => {
-    perfMode = !perfMode;
-    btnPerf.textContent = perfMode ? '⚡ Performance: An' : '⚡ Performance: Aus';
-    if (lastLoad){
-      loadScene(lastLoad.path, lastLoad.opts, lastLoad.formatLabel, lastLoad.sizeBytes);
-    }
-  });
-
-  btnNew.addEventListener('click', () => {
-    disposeViewer();
-    if (currentObjectUrl){ URL.revokeObjectURL(currentObjectUrl); currentObjectUrl = null; }
-    emptyState.classList.remove('hidden');
-    controls.classList.add('hidden');
-    hint.classList.add('hidden');
-    setStatus('Kein Scan geladen', false, '–');
-    statusFps.textContent = '–';
-    fileInput.value = '';
-    urlInput.value = '';
-  });
-</script>
+    // Initialize
+    init();
+  </script>
 </body>
 </html>
