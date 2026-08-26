@@ -43,7 +43,7 @@ let splatEntity = null;
 let teleportController = null;
 let rawPositions = null;
 let rawOpacities = null;
-let isFlipped = false;
+let isFlipped = true; // SuperSplat-Exporte sind konsistent auf dem Kopf -> Standard-Korrektur an
 
 const flipButton = document.getElementById('flip-button');
 
@@ -94,6 +94,12 @@ flipButton.addEventListener('click', () => {
     applyFlip();
 });
 
+[spawnXInput, spawnYInput, spawnZInput].forEach(input => {
+    input.addEventListener('input', () => {
+        if (splatEntity) frameCamera();
+    });
+});
+
 // --- Splat-Datei laden -----------------------------------------------------
 
 async function loadSplatFile(file) {
@@ -131,7 +137,10 @@ async function loadSplatFile(file) {
     let voxelGrid = null;
     rawPositions = null;
     rawOpacities = null;
-    isFlipped = false;
+    // isFlipped bewusst NICHT zurücksetzen: Standard bleibt "geflippt"
+    // (SuperSplat-Exporte sind konsistent auf dem Kopf), Nutzer-Umschaltung
+    // per Button bleibt über mehrere geladene Dateien hinweg erhalten.
+    if (splatEntity) splatEntity.setEulerAngles(isFlipped ? 180 : 0, 0, 0);
     if (ext === 'ply') {
         try {
             setStatus('Baue Voxel-Kollisionsgrid …');
@@ -167,9 +176,13 @@ function frameCamera() {
     // vorgegebener Punkt – die PLY-Datei wird dafür vorher (z. B. in
     // SuperSplat) so verschoben, dass die gewünschte Raummitte genau auf
     // diesen Punkt fällt.
-    const sx = parseFloat(spawnXInput.value) || 0;
-    const sy = parseFloat(spawnYInput.value) || 1.5;
-    const sz = parseFloat(spawnZInput.value) || 0;
+    const parseOr = (str, fallback) => {
+        const v = parseFloat(str);
+        return Number.isNaN(v) ? fallback : v;
+    };
+    const sx = parseOr(spawnXInput.value, 0);
+    const sy = parseOr(spawnYInput.value, 1.5);
+    const sz = parseOr(spawnZInput.value, 0);
     camera.setPosition(sx, sy, sz);
     camera.setEulerAngles(0, 0, 0);
 }
