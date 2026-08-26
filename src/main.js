@@ -38,6 +38,58 @@ app.root.addChild(light);
 
 let splatEntity = null;
 let teleportController = null;
+let rawPositions = null;
+let rawOpacities = null;
+let isFlipped = false;
+
+const flipButton = document.getElementById('flip-button');
+
+// PlayCanvas transformiert PLY-Splats beim Laden intern um 180° um die
+// Z-Achse (Wechsel von der PLY-Quellkonvention in engine-eigenes Y-up).
+// Unser eigener PLY-Parser liest die ROHEN Koordinaten – ohne diese
+// Transformation würde das Voxelgrid nicht zur gerenderten Szene passen.
+function toEngineSpace(x, y, z) {
+    return [-x, -y, z];
+}
+
+// Manuelle Zusatzdrehung (180° um X) für den Fall, dass das Ausgangs-Tool
+// eine andere Konvention nutzt als die, für die PlayCanvas' Standard-
+// transformation gedacht ist (z. B. je nach Scan-/Rekonstruktions-Tool).
+function toFlippedSpace([x, y, z]) {
+    return [x, -y, -z];
+}
+
+function buildVoxelGrid(resolution) {
+    if (!rawPositions) return null;
+    const count = rawPositions.length / 3;
+    const positions = new Float32Array(rawPositions.length);
+    for (let i = 0; i < count; i++) {
+        let p = toEngineSpace(rawPositions[i * 3], rawPositions[i * 3 + 1], rawPositions[i * 3 + 2]);
+        if (isFlipped) p = toFlippedSpace(p);
+        positions[i * 3] = p[0];
+        positions[i * 3 + 1] = p[1];
+        positions[i * 3 + 2] = p[2];
+    }
+    return new VoxelGrid(positions, rawOpacities, resolution);
+}
+
+function applyFlip() {
+    if (splatEntity) {
+        splatEntity.setEulerAngles(isFlipped ? 180 : 0, 0, 0);
+    }
+    const resolution = parseFloat(resolutionInput.value) || 0.15;
+    const voxelGrid = buildVoxelGrid(resolution);
+    frameCamera(voxelGrid);
+    if (teleportController) teleportController.destroy();
+    teleportController = new TeleportController(app, camera, splatEntity, voxelGrid);
+    teleportController.syncAnglesFromCamera();
+    return voxelGrid;
+}
+
+flipButton.addEventListener('click', () => {
+    isFlipped = !isFlipped;
+    applyFlip();
+});
 
 // --- Splat-Datei laden -----------------------------------------------------
 
@@ -74,13 +126,18 @@ async function loadSplatFile(file) {
     // 2) Voxelgrid für Kollision bauen (nur aus .ply möglich, da wir dafür
     //    direkten Zugriff auf die rohen Splat-Zentren brauchen)
     let voxelGrid = null;
+    rawPositions = null;
+    rawOpacities = null;
+    isFlipped = false;
     if (ext === 'ply') {
         try {
             setStatus('Baue Voxel-Kollisionsgrid …');
             const { positions, opacities, count } = parsePly(arrayBuffer);
+            rawPositions = positions;
+            rawOpacities = opacities;
             const resolution = parseFloat(resolutionInput.value) || 0.15;
-            voxelGrid = new VoxelGrid(positions, opacities, resolution);
-            setStatus(`Fertig: ${count.toLocaleString('de-DE')} Splats geladen, Voxelgrid mit ${voxelGrid.cells.size.toLocaleString('de-DE')} belegten Zellen (${resolution} m).`);
+            voxelGrid = buildVoxelGrid(resolution);
+            setStatus(`Fertig: ${count.toLocaleString('de-DE')} Splats geladen, Voxelgrid mit ${voxelGrid.cells.size.toLocaleString('de-DE')} belegten Zellen (${resolution} m). Steht die Szene auf dem Kopf? -> Button "Ausrichtung umkehren".`);
         } catch (err) {
             console.error(err);
             setStatus(`Splat geladen, aber Voxelgrid konnte nicht gebaut werden: ${err.message}`);
