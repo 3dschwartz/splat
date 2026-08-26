@@ -7,6 +7,9 @@ const canvas = document.getElementById('canvas');
 const statusEl = document.getElementById('status');
 const dropzone = document.getElementById('dropzone');
 const resolutionInput = document.getElementById('voxel-resolution');
+const spawnXInput = document.getElementById('spawn-x');
+const spawnYInput = document.getElementById('spawn-y');
+const spawnZInput = document.getElementById('spawn-z');
 
 function setStatus(text) {
     statusEl.textContent = text;
@@ -28,7 +31,7 @@ camera.addComponent('camera', {
     fov: 65,
     farClip: 500
 });
-camera.setPosition(0, 1.7, 3);
+camera.setPosition(0, 1.5, 0);
 app.root.addChild(camera);
 
 const light = new pc.Entity('Light');
@@ -79,7 +82,7 @@ function applyFlip() {
     }
     const resolution = parseFloat(resolutionInput.value) || 0.15;
     const voxelGrid = buildVoxelGrid(resolution);
-    frameCamera(voxelGrid);
+    frameCamera();
     if (teleportController) teleportController.destroy();
     teleportController = new TeleportController(app, camera, splatEntity, voxelGrid);
     teleportController.syncAnglesFromCamera();
@@ -146,9 +149,8 @@ async function loadSplatFile(file) {
         setStatus(`"${file.name}" geladen. Hinweis: Voxel-Kollision wird aktuell nur für .ply-Dateien berechnet (siehe README).`);
     }
 
-    // 3) Kamera in die tatsächliche Szenenmitte setzen (statt fixem Punkt,
-    //    der leicht außerhalb der gescannten Wände liegen kann)
-    frameCamera(voxelGrid);
+    // 3) Kamera an den fest konfigurierten Spawn-Punkt setzen
+    frameCamera();
 
     // 4) Teleport-Steuerung aktivieren
     teleportController = new TeleportController(app, camera, splatEntity, voxelGrid);
@@ -157,22 +159,18 @@ async function loadSplatFile(file) {
     dropzone.classList.add('hidden');
 }
 
-function frameCamera(voxelGrid) {
+function frameCamera() {
     if (!splatEntity || !splatEntity.gsplat) return;
-
-    if (voxelGrid && isFinite(voxelGrid.min[0])) {
-        // Horizontale Mitte der Szene, vertikal knapp über dem Boden der
-        // Bounding-Box starten -> deutlich wahrscheinlicher INNERHALB des
-        // gescannten Raums als ein fester (0,1.7,3)-Punkt.
-        const cx = (voxelGrid.min[0] + voxelGrid.max[0]) / 2;
-        const cz = (voxelGrid.min[2] + voxelGrid.max[2]) / 2;
-        const floorY = voxelGrid.findFloorBelow(cx, voxelGrid.max[1] + 0.5, cz, (voxelGrid.max[1] - voxelGrid.min[1]) + 1.0)
-            ?? voxelGrid.min[1];
-        camera.setPosition(cx, floorY + 1.7, cz);
-    } else {
-        // Kein Voxelgrid (z. B. .sog-Datei) -> weiterhin fixer Fallback-Punkt.
-        camera.setPosition(0, 1.7, 3);
-    }
+    // Fester Spawn-Punkt statt automatisch berechneter Bounding-Box-Mitte:
+    // bei verrauschten Scans mit Ausreißer-Splats liegt die BBox-Mitte oft
+    // nicht im begehbaren Bereich. Stattdessen: fester, vom Nutzer
+    // vorgegebener Punkt – die PLY-Datei wird dafür vorher (z. B. in
+    // SuperSplat) so verschoben, dass die gewünschte Raummitte genau auf
+    // diesen Punkt fällt.
+    const sx = parseFloat(spawnXInput.value) || 0;
+    const sy = parseFloat(spawnYInput.value) || 1.5;
+    const sz = parseFloat(spawnZInput.value) || 0;
+    camera.setPosition(sx, sy, sz);
     camera.setEulerAngles(0, 0, 0);
 }
 
