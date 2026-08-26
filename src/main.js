@@ -89,8 +89,9 @@ async function loadSplatFile(file) {
         setStatus(`"${file.name}" geladen. Hinweis: Voxel-Kollision wird aktuell nur für .ply-Dateien berechnet (siehe README).`);
     }
 
-    // 3) Kamera zentrieren
-    frameCamera();
+    // 3) Kamera in die tatsächliche Szenenmitte setzen (statt fixem Punkt,
+    //    der leicht außerhalb der gescannten Wände liegen kann)
+    frameCamera(voxelGrid);
 
     // 4) Teleport-Steuerung aktivieren
     teleportController = new TeleportController(app, camera, splatEntity, voxelGrid);
@@ -99,13 +100,22 @@ async function loadSplatFile(file) {
     dropzone.classList.add('hidden');
 }
 
-function frameCamera() {
+function frameCamera(voxelGrid) {
     if (!splatEntity || !splatEntity.gsplat) return;
-    // Grobe Zentrierung: Kamera ein Stück vor den Ursprung des Splats setzen.
-    // (Für exaktes Framing könnte man die AABB des gsplat-Assets auswerten;
-    // hier bewusst einfach gehalten, Nutzer kann sich per Drag umsehen und
-    // dann per Klick zum Startpunkt teleportieren.)
-    camera.setPosition(0, 1.7, 3);
+
+    if (voxelGrid && isFinite(voxelGrid.min[0])) {
+        // Horizontale Mitte der Szene, vertikal knapp über dem Boden der
+        // Bounding-Box starten -> deutlich wahrscheinlicher INNERHALB des
+        // gescannten Raums als ein fester (0,1.7,3)-Punkt.
+        const cx = (voxelGrid.min[0] + voxelGrid.max[0]) / 2;
+        const cz = (voxelGrid.min[2] + voxelGrid.max[2]) / 2;
+        const floorY = voxelGrid.findFloorBelow(cx, voxelGrid.max[1] + 0.5, cz, (voxelGrid.max[1] - voxelGrid.min[1]) + 1.0)
+            ?? voxelGrid.min[1];
+        camera.setPosition(cx, floorY + 1.7, cz);
+    } else {
+        // Kein Voxelgrid (z. B. .sog-Datei) -> weiterhin fixer Fallback-Punkt.
+        camera.setPosition(0, 1.7, 3);
+    }
     camera.setEulerAngles(0, 0, 0);
 }
 

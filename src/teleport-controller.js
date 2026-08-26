@@ -44,6 +44,20 @@ export class TeleportController {
         window.addEventListener('resize', this._onResize);
 
         this._fadeEl = document.getElementById('teleport-fade');
+
+        // Ergänzendes WASD-Gehen (kollisionsgeprüft): falls der Teleport
+        // allein nicht ausreicht, um z. B. durch eine Tür in einen Raum zu
+        // gelangen (der Klick-Raycast trifft dann nur die Außenwand), kann
+        // man sich damit selbst dorthin bewegen.
+        this._keys = new Set();
+        this._onKeyDown = (e) => this._keys.add(e.code);
+        this._onKeyUp = (e) => this._keys.delete(e.code);
+        window.addEventListener('keydown', this._onKeyDown);
+        window.addEventListener('keyup', this._onKeyUp);
+
+        this.walkSpeed = 1.6; // m/s
+        this._onUpdate = this._onUpdate.bind(this);
+        app.on('update', this._onUpdate);
     }
 
     destroy() {
@@ -54,6 +68,52 @@ export class TeleportController {
         canvas.removeEventListener('pointercancel', this._onPointerUp);
         canvas.removeEventListener('dblclick', this._onDblClick);
         window.removeEventListener('resize', this._onResize);
+        window.removeEventListener('keydown', this._onKeyDown);
+        window.removeEventListener('keyup', this._onKeyUp);
+        this.app.off('update', this._onUpdate);
+    }
+
+    _onUpdate(dt) {
+        if (this._keys.size === 0) return;
+
+        const forward = this.camera.forward.clone();
+        forward.y = 0;
+        if (forward.lengthSq() > 0.0001) forward.normalize();
+        const right = this.camera.right.clone();
+        right.y = 0;
+        if (right.lengthSq() > 0.0001) right.normalize();
+
+        const move = new pc.Vec3();
+        if (this._keys.has('KeyW') || this._keys.has('ArrowUp')) move.add(forward);
+        if (this._keys.has('KeyS') || this._keys.has('ArrowDown')) move.sub(forward);
+        if (this._keys.has('KeyD') || this._keys.has('ArrowRight')) move.add(right);
+        if (this._keys.has('KeyA') || this._keys.has('ArrowLeft')) move.sub(right);
+        if (move.lengthSq() === 0) return;
+
+        move.normalize().mulScalar(this.walkSpeed * dt);
+        const pos = this.camera.getPosition();
+        const next = pos.clone().add(move);
+
+        if (this.voxelGrid) {
+            // Nur entlang der Achse bewegen, die frei ist (einfaches
+            // Wand-Gleiten statt komplett zu blockieren).
+            const tryPos = pos.clone();
+            tryPos.x = next.x;
+            if (this.voxelGrid.hasClearance(tryPos.x, tryPos.y - 1.6, tryPos.z, this.headClearance)) {
+                pos.x = tryPos.x;
+            }
+            tryPos.x = pos.x;
+            tryPos.z = next.z;
+            if (this.voxelGrid.hasClearance(tryPos.x, tryPos.y - 1.6, tryPos.z, this.headClearance)) {
+                pos.z = tryPos.z;
+            }
+            // An Boden andocken, falls vorhanden
+            const floorY = this.voxelGrid.findFloorBelow(pos.x, pos.y + 0.3, pos.z, 1.0);
+            if (floorY !== null) pos.y = floorY + this.eyeHeight;
+            this.camera.setPosition(pos);
+        } else {
+            this.camera.setPosition(next);
+        }
     }
 
     _onResize() {
