@@ -159,8 +159,13 @@ export class TeleportController {
     _tryTeleport(clientX, clientY) {
         const canvas = this.app.graphicsDevice.canvas;
         const rect = canvas.getBoundingClientRect();
-        const x = (clientX - rect.left) * (canvas.width / rect.width);
-        const y = (clientY - rect.top) * (canvas.height / rect.height);
+        // screenToWorld() erwartet Koordinaten im Bereich 0..canvas.offsetWidth/
+        // offsetHeight (CSS-Pixel), NICHT die interne Render-Auflösung
+        // (canvas.width/height). Bei Retina/HiDPI-Displays oder PlayCanvas'
+        // Auto-Resolution-Skalierung unterscheiden sich beide Werte -> falsch
+        // skaliert zeigte der Klahlstrahl in eine völlig falsche Richtung.
+        const x = clientX - rect.left;
+        const y = clientY - rect.top;
 
         this.picker.prepare(this.camera.camera, this.app.scene);
         // getSelection liefert an dieser Pixelposition getroffene Objekte;
@@ -179,7 +184,10 @@ export class TeleportController {
     // bis der erste feste Voxel gefunden wird. Funktioniert unabhängig davon,
     // ob der GPU-Splat-Picker exakte Tiefenwerte liefert.
     _raycastVoxelGrid(pixelX, pixelY, rect, canvas) {
-        if (!this.voxelGrid) return null;
+        if (!this.voxelGrid) {
+            console.warn('[Teleport] Kein Voxelgrid vorhanden (z. B. .sog-Datei ohne PLY-Kollision) – Teleport deaktiviert.');
+            return null;
+        }
 
         const from = this.camera.getPosition().clone();
         const farPoint = this.camera.camera.screenToWorld(
@@ -199,6 +207,9 @@ export class TeleportController {
                 return hit;
             }
         }
+        console.warn('[Teleport] Kein fester Voxel entlang des Klickstrahls gefunden.', {
+            from: from.toString(), dir: dir.toString(), maxDist, cellCount: this.voxelGrid.cells.size
+        });
         return null;
     }
 
@@ -211,6 +222,9 @@ export class TeleportController {
             const clear = this.voxelGrid.hasClearance(hitPoint.x, standY, hitPoint.z, this.headClearance);
             if (!clear) {
                 // Ziel ist zugebaut (z. B. Wandtreffer statt Boden) -> ablehnen
+                console.warn('[Teleport] Ziel abgelehnt: zu wenig Kopffreiheit.', {
+                    hitPoint: hitPoint.toString(), standY, headClearance: this.headClearance
+                });
                 return;
             }
         }
