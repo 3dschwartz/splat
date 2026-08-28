@@ -149,7 +149,11 @@ async function loadSplatFile(file) {
             rawOpacities = opacities;
             const resolution = parseFloat(resolutionInput.value) || 0.15;
             voxelGrid = buildVoxelGrid(resolution);
-            setStatus(`Fertig: ${count.toLocaleString('de-DE')} Splats geladen, Voxelgrid mit ${voxelGrid.cells.size.toLocaleString('de-DE')} belegten Zellen (${resolution} m). Steht die Szene auf dem Kopf? -> Button "Ausrichtung umkehren".`);
+            const b = voxelGrid;
+            const bounds = isFinite(b.min[0])
+                ? `X ${b.min[0].toFixed(1)}…${b.max[0].toFixed(1)}, Y ${b.min[1].toFixed(1)}…${b.max[1].toFixed(1)}, Z ${b.min[2].toFixed(1)}…${b.max[2].toFixed(1)}`
+                : 'leer (keine Splats über Opacity-Schwelle)';
+            setStatus(`Fertig: ${count.toLocaleString('de-DE')} Splats, ${voxelGrid.cells.size.toLocaleString('de-DE')} Voxel (${resolution} m). Bounding-Box: ${bounds}. Steht die Szene auf dem Kopf? -> Button "Ausrichtung umkehren".`);
         } catch (err) {
             console.error(err);
             setStatus(`Splat geladen, aber Voxelgrid konnte nicht gebaut werden: ${err.message}`);
