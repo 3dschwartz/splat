@@ -85,7 +85,10 @@ export class VoxelGrid {
      * @param {number} step  Abtastschritt in Metern (<= resolution empfohlen)
      */
     hasClearance(x, y, z, headHeight = 1.7, step = null) {
-        const s = step || this.resolution;
+        // Mindestens ~8 Abtastpunkte über die geprüfte Höhe, unabhängig von
+        // der (evtl. grob eingestellten) Voxelgröße – sonst können bei
+        // großer Voxelgröße dünne Wände zwischen zwei Samples "durchrutschen".
+        const s = step || Math.min(this.resolution, Math.max(headHeight / 8, 0.05));
         for (let h = 0; h <= headHeight; h += s) {
             if (this.isSolid(x, y + h, z)) return false;
         }

@@ -99,12 +99,12 @@ export class TeleportController {
             // Wand-Gleiten statt komplett zu blockieren).
             const tryPos = pos.clone();
             tryPos.x = next.x;
-            if (this.voxelGrid.hasClearance(tryPos.x, tryPos.y - 1.6, tryPos.z, this.headClearance)) {
+            if (this.voxelGrid.hasClearance(tryPos.x, tryPos.y - this.eyeHeight, tryPos.z, this.headClearance)) {
                 pos.x = tryPos.x;
             }
             tryPos.x = pos.x;
             tryPos.z = next.z;
-            if (this.voxelGrid.hasClearance(tryPos.x, tryPos.y - 1.6, tryPos.z, this.headClearance)) {
+            if (this.voxelGrid.hasClearance(tryPos.x, tryPos.y - this.eyeHeight, tryPos.z, this.headClearance)) {
                 pos.z = tryPos.z;
             }
             // An Boden andocken, falls vorhanden
