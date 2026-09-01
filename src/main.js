@@ -199,28 +199,36 @@ async function loadCollisionFile(file) {
     }
     meshCollider = null;
 
-    const arrayBuffer = await file.arrayBuffer();
-    const blobUrl = URL.createObjectURL(new Blob([arrayBuffer]));
-
-    const asset = new pc.Asset(file.name, 'container', { url: blobUrl, filename: file.name });
-    await new Promise((resolve, reject) => {
-        asset.once('load', resolve);
-        asset.once('error', reject);
-        app.assets.add(asset);
-        app.assets.load(asset);
-    });
-
-    collisionEntity = asset.resource.instantiateRenderEntity();
-    app.root.addChild(collisionEntity);
-    collisionEntity.enabled = collisionVisibleCheckbox.checked;
-
     try {
+        const arrayBuffer = await file.arrayBuffer();
+        const blobUrl = URL.createObjectURL(new Blob([arrayBuffer]));
+
+        const asset = new pc.Asset(file.name, 'container', { url: blobUrl, filename: file.name });
+        await new Promise((resolve, reject) => {
+            asset.once('load', resolve);
+            asset.once('error', (err) => reject(new Error(err || 'Container-Asset konnte nicht geladen werden')));
+            app.assets.add(asset);
+            app.assets.load(asset);
+        });
+
+        collisionEntity = asset.resource.instantiateRenderEntity();
+        app.root.addChild(collisionEntity);
+        collisionEntity.enabled = collisionVisibleCheckbox.checked;
+
         meshCollider = new MeshCollider(collisionEntity);
-        setStatus(`Kollisionsmesh "${file.name}" geladen: ${meshCollider.triangles.length.toLocaleString('de-DE')} Dreiecke. Hat jetzt Vorrang vor dem Voxelgrid.`);
+        const b = meshCollider;
+        const bounds = isFinite(b.min[0])
+            ? `X ${b.min[0].toFixed(1)}…${b.max[0].toFixed(1)}, Y ${b.min[1].toFixed(1)}…${b.max[1].toFixed(1)}, Z ${b.min[2].toFixed(1)}…${b.max[2].toFixed(1)}`
+            : 'leer (keine Dreiecke gefunden)';
+        setStatus(`Kollisionsmesh "${file.name}" geladen: ${meshCollider.triangles.length.toLocaleString('de-DE')} Dreiecke. Bounding-Box: ${bounds}. Hat jetzt Vorrang vor dem Voxelgrid.`);
     } catch (err) {
-        console.error(err);
+        console.error('[Kollisions-GLB]', err);
         meshCollider = null;
-        setStatus(`Kollisionsmesh geladen, aber Dreiecke konnten nicht extrahiert werden: ${err.message}`);
+        if (collisionEntity) {
+            collisionEntity.destroy();
+            collisionEntity = null;
+        }
+        setStatus(`Fehler beim Laden des Kollisionsmeshes "${file.name}": ${err.message}`);
     }
 
     rebuildTeleportController();
