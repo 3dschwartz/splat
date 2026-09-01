@@ -110,4 +110,34 @@ export class VoxelGrid {
         }
         return null;
     }
+
+    /**
+     * Einheitliche Raycast-Schnittstelle (kompatibel zu MeshCollider.raycast).
+     * Marschiert in kleinen Schritten entlang des Strahls und gibt den
+     * ersten Treffer auf einen festen Voxel zurück.
+     * @param {pc.Vec3} origin
+     * @param {pc.Vec3} dir  normalisierte Richtung
+     * @param {number} maxDist
+     * @returns {pc.Vec3|null}
+     */
+    raycast(origin, dir, maxDist) {
+        const step = Math.max(this.resolution * 0.5, 0.02);
+        for (let d = 0; d < maxDist; d += step) {
+            const px = origin.x + dir.x * d;
+            const py = origin.y + dir.y * d;
+            const pz = origin.z + dir.z * d;
+            if (this.isSolid(px, py, pz)) {
+                const backD = Math.max(d - step, 0);
+                return {
+                    point: {
+                        x: origin.x + dir.x * backD,
+                        y: origin.y + dir.y * backD,
+                        z: origin.z + dir.z * backD
+                    },
+                    distance: backD
+                };
+            }
+        }
+        return null;
+    }
 }

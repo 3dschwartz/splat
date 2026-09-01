@@ -1,6 +1,7 @@
 import * as pc from 'playcanvas';
 import { parsePly } from './ply-parser.js';
 import { VoxelGrid } from './voxel-grid.js';
+import { MeshCollider } from './mesh-collision.js';
 import { TeleportController } from './teleport-controller.js';
 
 const canvas = document.getElementById('canvas');
@@ -10,6 +11,8 @@ const resolutionInput = document.getElementById('voxel-resolution');
 const spawnXInput = document.getElementById('spawn-x');
 const spawnYInput = document.getElementById('spawn-y');
 const spawnZInput = document.getElementById('spawn-z');
+const collisionFileInput = document.getElementById('collision-file-input');
+const collisionVisibleCheckbox = document.getElementById('collision-visible');
 
 function setStatus(text) {
     statusEl.textContent = text;
@@ -44,8 +47,24 @@ let teleportController = null;
 let rawPositions = null;
 let rawOpacities = null;
 let isFlipped = true; // SuperSplat-Exporte sind konsistent auf dem Kopf -> Standard-Korrektur an
+let voxelGrid = null;
+let meshCollider = null;
+let collisionEntity = null;
 
 const flipButton = document.getElementById('flip-button');
+
+// Wenn eine GLB-Kollisionsdatei geladen ist, hat sie Vorrang vor dem
+// PLY-basierten Voxelgrid (echtes Mesh ist präziser). Ohne GLB fällt es
+// automatisch auf das Voxelgrid zurück.
+function activeCollider() {
+    return meshCollider || voxelGrid;
+}
+
+function rebuildTeleportController() {
+    if (teleportController) teleportController.destroy();
+    teleportController = new TeleportController(app, camera, splatEntity, activeCollider());
+    teleportController.syncAnglesFromCamera();
+}
 
 // PlayCanvas transformiert PLY-Splats beim Laden intern um 180° um die
 // Z-Achse (Wechsel von der PLY-Quellkonvention in engine-eigenes Y-up).
@@ -81,12 +100,9 @@ function applyFlip() {
         splatEntity.setEulerAngles(isFlipped ? 180 : 0, 0, 0);
     }
     const resolution = parseFloat(resolutionInput.value) || 0.15;
-    const voxelGrid = buildVoxelGrid(resolution);
+    voxelGrid = buildVoxelGrid(resolution);
     frameCamera();
-    if (teleportController) teleportController.destroy();
-    teleportController = new TeleportController(app, camera, splatEntity, voxelGrid);
-    teleportController.syncAnglesFromCamera();
-    return voxelGrid;
+    rebuildTeleportController();
 }
 
 flipButton.addEventListener('click', () => {
@@ -133,8 +149,9 @@ async function loadSplatFile(file) {
     app.root.addChild(splatEntity);
 
     // 2) Voxelgrid für Kollision bauen (nur aus .ply möglich, da wir dafür
-    //    direkten Zugriff auf die rohen Splat-Zentren brauchen)
-    let voxelGrid = null;
+    //    direkten Zugriff auf die rohen Splat-Zentren brauchen). Wird nur
+    //    verwendet, solange kein GLB-Kollisionsmesh geladen ist.
+    voxelGrid = null;
     rawPositions = null;
     rawOpacities = null;
     // isFlipped bewusst NICHT zurücksetzen: Standard bleibt "geflippt"
@@ -159,18 +176,63 @@ async function loadSplatFile(file) {
             setStatus(`Splat geladen, aber Voxelgrid konnte nicht gebaut werden: ${err.message}`);
         }
     } else {
-        setStatus(`"${file.name}" geladen. Hinweis: Voxel-Kollision wird aktuell nur für .ply-Dateien berechnet (siehe README).`);
+        setStatus(`"${file.name}" geladen. Hinweis: Voxel-Kollision wird aktuell nur für .ply-Dateien berechnet (siehe README) – lade stattdessen ein Kollisions-GLB hoch.`);
     }
 
     // 3) Kamera an den fest konfigurierten Spawn-Punkt setzen
     frameCamera();
 
-    // 4) Teleport-Steuerung aktivieren
-    teleportController = new TeleportController(app, camera, splatEntity, voxelGrid);
-    teleportController.syncAnglesFromCamera();
+    // 4) Teleport-Steuerung aktivieren (Mesh-Collider hat Vorrang, falls vorhanden)
+    rebuildTeleportController();
 
     dropzone.classList.add('hidden');
 }
+
+// --- Kollisions-GLB laden ---------------------------------------------
+
+async function loadCollisionFile(file) {
+    setStatus(`Lade Kollisionsmesh "${file.name}" …`);
+
+    if (collisionEntity) {
+        collisionEntity.destroy();
+        collisionEntity = null;
+    }
+    meshCollider = null;
+
+    const arrayBuffer = await file.arrayBuffer();
+    const blobUrl = URL.createObjectURL(new Blob([arrayBuffer]));
+
+    const asset = new pc.Asset(file.name, 'container', { url: blobUrl, filename: file.name });
+    await new Promise((resolve, reject) => {
+        asset.once('load', resolve);
+        asset.once('error', reject);
+        app.assets.add(asset);
+        app.assets.load(asset);
+    });
+
+    collisionEntity = asset.resource.instantiateRenderEntity();
+    app.root.addChild(collisionEntity);
+    collisionEntity.enabled = collisionVisibleCheckbox.checked;
+
+    try {
+        meshCollider = new MeshCollider(collisionEntity);
+        setStatus(`Kollisionsmesh "${file.name}" geladen: ${meshCollider.triangles.length.toLocaleString('de-DE')} Dreiecke. Hat jetzt Vorrang vor dem Voxelgrid.`);
+    } catch (err) {
+        console.error(err);
+        meshCollider = null;
+        setStatus(`Kollisionsmesh geladen, aber Dreiecke konnten nicht extrahiert werden: ${err.message}`);
+    }
+
+    rebuildTeleportController();
+}
+
+collisionVisibleCheckbox.addEventListener('change', () => {
+    if (collisionEntity) collisionEntity.enabled = collisionVisibleCheckbox.checked;
+});
+
+collisionFileInput.addEventListener('change', () => {
+    if (collisionFileInput.files[0]) loadCollisionFile(collisionFileInput.files[0]);
+});
 
 function frameCamera() {
     if (!splatEntity || !splatEntity.gsplat) return;
@@ -205,7 +267,12 @@ window.addEventListener('dragleave', (e) => {
 window.addEventListener('drop', (e) => {
     e.preventDefault();
     const file = e.dataTransfer.files[0];
-    if (file) loadSplatFile(file);
+    if (!file) return;
+    if (file.name.toLowerCase().endsWith('.glb')) {
+        loadCollisionFile(file);
+    } else {
+        loadSplatFile(file);
+    }
 });
 
 const fileInput = document.getElementById('file-input');
