@@ -2,7 +2,9 @@
 
 Ein minimaler, quelloffener Web-Viewer für 3D Gaussian Splats mit
 **Teleport-Bewegung** (Klick = sofortiger Sprung, kein Gleiten/Fahren)
-und **voxelbasierter Kollisionserkennung**, gebaut auf der
+und **Kollisionserkennung** – wahlweise über ein eigenes **Voxelgrid**
+(automatisch aus der `.ply`-Datei gebaut) oder über ein **echtes
+Kollisions-Mesh** (`.glb`, z. B. aus Blender). Gebaut auf der
 [PlayCanvas Engine](https://github.com/playcanvas/engine) – derselben
 Engine, auf der auch [SuperSplat](https://superspl.at) und der
 offizielle [SuperSplat Viewer](https://github.com/playcanvas/supersplat-viewer)
@@ -21,10 +23,15 @@ npx serve .
 
 Dann im Browser eine `.ply`-Datei (Standard-3DGS-Export, ASCII oder
 `binary_little_endian`) per Drag&Drop ins Fenster ziehen oder über den
-Datei-Dialog auswählen.
+Datei-Dialog auswählen. Optional zusätzlich eine `.glb`-Kollisionsdatei
+laden (zweiter Datei-Dialog bzw. GLB einfach mit reinziehen) – dann hat
+diese Vorrang vor dem automatischen Voxelgrid (siehe unten). Über die
+Checkbox "Mesh sichtbar" lässt sich das Kollisions-Mesh ein-/ausblenden,
+ohne die Kollision selbst zu beeinflussen.
 
 - **Umschauen:** Maus/Finger gedrückt halten und ziehen
 - **Teleport:** einfacher Klick/Tap auf eine Stelle im Splat
+- **Gehen:** WASD/Pfeiltasten (kollisionsgeprüft, mit Wand-Gleiten)
 
 ## Wie die Kollision funktioniert
 
@@ -48,6 +55,27 @@ gebaut (`src/voxel-grid.js`):
 
 Das ist bewusst einfach gehalten und läuft komplett im Browser, ohne
 Preprocessing-Schritt.
+
+## Alternative: eigenes Kollisions-Mesh (.glb)
+
+Statt des automatischen Voxelgrids kann auch ein selbst modelliertes
+Kollisions-Mesh geladen werden (`src/mesh-collision.js`) – z. B. ein
+grobes, geschlossenes Raum-Volumen (Wände/Boden/Decke als einfache
+Boxen/Flächen, kein Detailmodell), das in Blender um den Splat herum
+gebaut und als `.glb` exportiert wird. Das Mesh muss nicht sichtbar
+sein (per Checkbox ausblendbar) – es dient rein der Kollision.
+
+Technisch: Klick-Teleport und WASD-Gehen werfen einen Strahl gegen
+alle Dreiecke des Meshes (Möller–Trumbore-Ray-Dreieck-Test, ohne
+Physik-Engine/ammo.js). Für ein bewusst grobes Kollisionsmesh (paar
+hundert bis wenige tausend Dreiecke) ist das brute-force schnell genug;
+bei sehr hochauflösenden Meshes (>20.000 Dreiecke) würde sich eine
+räumliche Beschleunigungsstruktur (BVH) lohnen – aktuell nicht
+implementiert.
+
+Ist ein Kollisions-GLB geladen, hat es **Vorrang** vor dem Voxelgrid
+(präzisere echte Geometrie). Ohne GLB fällt die Kollision automatisch
+auf das Voxelgrid zurück.
 
 ## Bezug zu SuperSplat / Ausbaupfad
 

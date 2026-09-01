@@ -70,17 +70,25 @@
     </label>
     <input id="file-input" type="file" accept=".ply,.sog,.compressed.ply">
     <button id="flip-button" type="button">Ausrichtung umkehren</button>
+    <label style="border-left:1px solid rgba(255,255,255,0.3); padding-left:8px;">Kollisions-GLB
+      <input id="collision-file-input" type="file" accept=".glb">
+    </label>
+    <label>
+      <input id="collision-visible" type="checkbox">
+      Mesh sichtbar
+    </label>
   </div>
 </div>
 
-<div id="dropzone" class="hidden">Splat-Datei hier ablegen (.ply / .compressed.ply / .sog)</div>
+<div id="dropzone" class="hidden">Splat-Datei (.ply / .compressed.ply / .sog) oder Kollisions-Mesh (.glb) hier ablegen</div>
 <div id="teleport-fade"></div>
 <div id="help">
-  <strong>Steuerung:</strong> Klick = Teleport zum angeklickten Punkt (Boden/Wand-Check via Voxelgrid) ·
+  <strong>Steuerung:</strong> Klick = Teleport zum angeklickten Punkt (Boden/Wand-Check via Collider) ·
   Ziehen mit gedrückter Maustaste = Umschauen · WASD/Pfeiltasten = Gehen (kollisionsgeprüft).<br>
   Spawn X/Y/Z = fester Startpunkt der Kamera beim Laden. Verschiebe deine Splats vorher (z. B. in SuperSplat)
   so, dass dein gewünschter Raummittelpunkt genau auf diesen Punkt fällt.<br>
-  Voxel-Kollision wird aktuell nur aus <code>.ply</code>-Dateien berechnet.
+  Ohne Kollisions-GLB: Voxel-Kollision aus <code>.ply</code>-Splat-Zentren. Mit geladenem Kollisions-GLB: dieses
+  Mesh hat Vorrang (präzisere, echte Geometrie) – per Checkbox ein-/ausblendbar, ohne die Kollision zu beeinflussen.
 </div>
 
 <script type="module" src="./src/main.js"></script>
