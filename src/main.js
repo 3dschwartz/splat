@@ -1,7 +1,6 @@
 import * as pc from 'playcanvas';
 import { parsePly } from './ply-parser.js';
 import { VoxelGrid } from './voxel-grid.js';
-import { MeshCollider } from './mesh-collision.js';
 import { TeleportController } from './teleport-controller.js';
 
 const canvas = document.getElementById('canvas');
@@ -11,8 +10,7 @@ const resolutionInput = document.getElementById('voxel-resolution');
 const spawnXInput = document.getElementById('spawn-x');
 const spawnYInput = document.getElementById('spawn-y');
 const spawnZInput = document.getElementById('spawn-z');
-const collisionFileInput = document.getElementById('collision-file-input');
-const collisionVisibleCheckbox = document.getElementById('collision-visible');
+const voxelVisibleCheckbox = document.getElementById('voxel-visible');
 
 function setStatus(text) {
     statusEl.textContent = text;
@@ -48,21 +46,13 @@ let rawPositions = null;
 let rawOpacities = null;
 let isFlipped = true; // SuperSplat-Exporte sind konsistent auf dem Kopf -> Standard-Korrektur an
 let voxelGrid = null;
-let meshCollider = null;
-let collisionEntity = null;
+let voxelVisEntity = null;
 
 const flipButton = document.getElementById('flip-button');
 
-// Wenn eine GLB-Kollisionsdatei geladen ist, hat sie Vorrang vor dem
-// PLY-basierten Voxelgrid (echtes Mesh ist präziser). Ohne GLB fällt es
-// automatisch auf das Voxelgrid zurück.
-function activeCollider() {
-    return meshCollider || voxelGrid;
-}
-
 function rebuildTeleportController() {
     if (teleportController) teleportController.destroy();
-    teleportController = new TeleportController(app, camera, splatEntity, activeCollider());
+    teleportController = new TeleportController(app, camera, splatEntity, voxelGrid);
     teleportController.syncAnglesFromCamera();
 }
 
@@ -95,6 +85,81 @@ function buildVoxelGrid(resolution) {
     return new VoxelGrid(positions, rawOpacities, resolution);
 }
 
+// --- Voxel-Visualisierung (wie der Voxel-Preview bei SuperSplat) ----------
+
+const MAX_VISUALIZED_VOXELS = 60000;
+
+function destroyVoxelVisualization() {
+    if (voxelVisEntity) {
+        voxelVisEntity.destroy();
+        voxelVisEntity = null;
+    }
+}
+
+function buildVoxelVisualization() {
+    destroyVoxelVisualization();
+    if (!voxelGrid || voxelGrid.cells.size === 0) return;
+
+    const resolution = voxelGrid.resolution;
+    // 12 Kanten pro Würfel, je 2 Endpunkte, je 3 Koordinaten
+    const cubeEdges = [
+        [0, 0, 0], [1, 0, 0], [1, 0, 0], [1, 1, 0], [1, 1, 0], [0, 1, 0], [0, 1, 0], [0, 0, 0], // unten
+        [0, 0, 1], [1, 0, 1], [1, 0, 1], [1, 1, 1], [1, 1, 1], [0, 1, 1], [0, 1, 1], [0, 0, 1], // oben
+        [0, 0, 0], [0, 0, 1], [1, 0, 0], [1, 0, 1], [1, 1, 0], [1, 1, 1], [0, 1, 0], [0, 1, 1]  // senkrecht
+    ];
+
+    let cellsToDraw = voxelGrid.cells;
+    let truncated = false;
+    if (cellsToDraw.size > MAX_VISUALIZED_VOXELS) {
+        const limited = new Set();
+        let i = 0;
+        for (const key of cellsToDraw) {
+            if (i++ >= MAX_VISUALIZED_VOXELS) break;
+            limited.add(key);
+        }
+        cellsToDraw = limited;
+        truncated = true;
+    }
+
+    const positions = new Float32Array(cellsToDraw.size * cubeEdges.length * 3);
+    let o = 0;
+    for (const key of cellsToDraw) {
+        const [vx, vy, vz] = key.split('_').map(Number);
+        const bx = vx * resolution, by = vy * resolution, bz = vz * resolution;
+        for (const [dx, dy, dz] of cubeEdges) {
+            positions[o++] = bx + dx * resolution;
+            positions[o++] = by + dy * resolution;
+            positions[o++] = bz + dz * resolution;
+        }
+    }
+
+    const mesh = new pc.Mesh(app.graphicsDevice);
+    mesh.setPositions(positions);
+    mesh.update(pc.PRIMITIVE_LINES);
+
+    const material = new pc.BasicMaterial();
+    material.color = new pc.Color(0.2, 1.0, 0.4);
+    material.update();
+
+    const meshInstance = new pc.MeshInstance(mesh, material);
+    voxelVisEntity = new pc.Entity('VoxelVisualization');
+    voxelVisEntity.addComponent('render', { meshInstances: [meshInstance] });
+    app.root.addChild(voxelVisEntity);
+    voxelVisEntity.enabled = voxelVisibleCheckbox.checked;
+
+    if (truncated) {
+        setStatus(statusEl.textContent + ` (Voxel-Anzeige auf ${MAX_VISUALIZED_VOXELS.toLocaleString('de-DE')} von ${voxelGrid.cells.size.toLocaleString('de-DE')} Zellen begrenzt.)`);
+    }
+}
+
+voxelVisibleCheckbox.addEventListener('change', () => {
+    if (!voxelVisEntity && voxelVisibleCheckbox.checked) {
+        buildVoxelVisualization();
+    } else if (voxelVisEntity) {
+        voxelVisEntity.enabled = voxelVisibleCheckbox.checked;
+    }
+});
+
 function applyFlip() {
     if (splatEntity) {
         splatEntity.setEulerAngles(isFlipped ? 180 : 0, 0, 0);
@@ -103,6 +168,8 @@ function applyFlip() {
     voxelGrid = buildVoxelGrid(resolution);
     frameCamera();
     rebuildTeleportController();
+    destroyVoxelVisualization();
+    if (voxelVisibleCheckbox.checked) buildVoxelVisualization();
 }
 
 flipButton.addEventListener('click', () => {
@@ -129,6 +196,7 @@ async function loadSplatFile(file) {
         teleportController.destroy();
         teleportController = null;
     }
+    destroyVoxelVisualization();
 
     const arrayBuffer = await file.arrayBuffer();
     const blobUrl = URL.createObjectURL(new Blob([arrayBuffer]));
@@ -149,8 +217,7 @@ async function loadSplatFile(file) {
     app.root.addChild(splatEntity);
 
     // 2) Voxelgrid für Kollision bauen (nur aus .ply möglich, da wir dafür
-    //    direkten Zugriff auf die rohen Splat-Zentren brauchen). Wird nur
-    //    verwendet, solange kein GLB-Kollisionsmesh geladen ist.
+    //    direkten Zugriff auf die rohen Splat-Zentren brauchen).
     voxelGrid = null;
     rawPositions = null;
     rawOpacities = null;
@@ -171,76 +238,23 @@ async function loadSplatFile(file) {
                 ? `X ${b.min[0].toFixed(1)}…${b.max[0].toFixed(1)}, Y ${b.min[1].toFixed(1)}…${b.max[1].toFixed(1)}, Z ${b.min[2].toFixed(1)}…${b.max[2].toFixed(1)}`
                 : 'leer (keine Splats über Opacity-Schwelle)';
             setStatus(`Fertig: ${count.toLocaleString('de-DE')} Splats, ${voxelGrid.cells.size.toLocaleString('de-DE')} Voxel (${resolution} m). Bounding-Box: ${bounds}. Steht die Szene auf dem Kopf? -> Button "Ausrichtung umkehren".`);
+            if (voxelVisibleCheckbox.checked) buildVoxelVisualization();
         } catch (err) {
             console.error(err);
             setStatus(`Splat geladen, aber Voxelgrid konnte nicht gebaut werden: ${err.message}`);
         }
     } else {
-        setStatus(`"${file.name}" geladen. Hinweis: Voxel-Kollision wird aktuell nur für .ply-Dateien berechnet (siehe README) – lade stattdessen ein Kollisions-GLB hoch.`);
+        setStatus(`"${file.name}" geladen. Hinweis: Voxel-Kollision wird aktuell nur für .ply-Dateien berechnet (siehe README).`);
     }
 
     // 3) Kamera an den fest konfigurierten Spawn-Punkt setzen
     frameCamera();
 
-    // 4) Teleport-Steuerung aktivieren (Mesh-Collider hat Vorrang, falls vorhanden)
+    // 4) Teleport-Steuerung aktivieren
     rebuildTeleportController();
 
     dropzone.classList.add('hidden');
 }
-
-// --- Kollisions-GLB laden ---------------------------------------------
-
-async function loadCollisionFile(file) {
-    setStatus(`Lade Kollisionsmesh "${file.name}" …`);
-
-    if (collisionEntity) {
-        collisionEntity.destroy();
-        collisionEntity = null;
-    }
-    meshCollider = null;
-
-    try {
-        const arrayBuffer = await file.arrayBuffer();
-        const blobUrl = URL.createObjectURL(new Blob([arrayBuffer]));
-
-        const asset = new pc.Asset(file.name, 'container', { url: blobUrl, filename: file.name });
-        await new Promise((resolve, reject) => {
-            asset.once('load', resolve);
-            asset.once('error', (err) => reject(new Error(err || 'Container-Asset konnte nicht geladen werden')));
-            app.assets.add(asset);
-            app.assets.load(asset);
-        });
-
-        collisionEntity = asset.resource.instantiateRenderEntity();
-        app.root.addChild(collisionEntity);
-        collisionEntity.enabled = collisionVisibleCheckbox.checked;
-
-        meshCollider = new MeshCollider(collisionEntity);
-        const b = meshCollider;
-        const bounds = isFinite(b.min[0])
-            ? `X ${b.min[0].toFixed(1)}…${b.max[0].toFixed(1)}, Y ${b.min[1].toFixed(1)}…${b.max[1].toFixed(1)}, Z ${b.min[2].toFixed(1)}…${b.max[2].toFixed(1)}`
-            : 'leer (keine Dreiecke gefunden)';
-        setStatus(`Kollisionsmesh "${file.name}" geladen: ${meshCollider.triangles.length.toLocaleString('de-DE')} Dreiecke. Bounding-Box: ${bounds}. Hat jetzt Vorrang vor dem Voxelgrid.`);
-    } catch (err) {
-        console.error('[Kollisions-GLB]', err);
-        meshCollider = null;
-        if (collisionEntity) {
-            collisionEntity.destroy();
-            collisionEntity = null;
-        }
-        setStatus(`Fehler beim Laden des Kollisionsmeshes "${file.name}": ${err.message}`);
-    }
-
-    rebuildTeleportController();
-}
-
-collisionVisibleCheckbox.addEventListener('change', () => {
-    if (collisionEntity) collisionEntity.enabled = collisionVisibleCheckbox.checked;
-});
-
-collisionFileInput.addEventListener('change', () => {
-    if (collisionFileInput.files[0]) loadCollisionFile(collisionFileInput.files[0]);
-});
 
 function frameCamera() {
     if (!splatEntity || !splatEntity.gsplat) return;
@@ -275,12 +289,7 @@ window.addEventListener('dragleave', (e) => {
 window.addEventListener('drop', (e) => {
     e.preventDefault();
     const file = e.dataTransfer.files[0];
-    if (!file) return;
-    if (file.name.toLowerCase().endsWith('.glb')) {
-        loadCollisionFile(file);
-    } else {
-        loadSplatFile(file);
-    }
+    if (file) loadSplatFile(file);
 });
 
 const fileInput = document.getElementById('file-input');
