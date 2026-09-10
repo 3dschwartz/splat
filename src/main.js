@@ -98,57 +98,67 @@ function destroyVoxelVisualization() {
 
 function buildVoxelVisualization() {
     destroyVoxelVisualization();
-    if (!voxelGrid || voxelGrid.cells.size === 0) return;
+    if (!voxelGrid || voxelGrid.cells.size === 0) {
+        setStatus(statusEl.textContent + ' (Keine Voxel zum Anzeigen vorhanden.)');
+        return;
+    }
 
-    const resolution = voxelGrid.resolution;
-    // 12 Kanten pro Würfel, je 2 Endpunkte, je 3 Koordinaten
-    const cubeEdges = [
-        [0, 0, 0], [1, 0, 0], [1, 0, 0], [1, 1, 0], [1, 1, 0], [0, 1, 0], [0, 1, 0], [0, 0, 0], // unten
-        [0, 0, 1], [1, 0, 1], [1, 0, 1], [1, 1, 1], [1, 1, 1], [0, 1, 1], [0, 1, 1], [0, 0, 1], // oben
-        [0, 0, 0], [0, 0, 1], [1, 0, 0], [1, 0, 1], [1, 1, 0], [1, 1, 1], [0, 1, 0], [0, 1, 1]  // senkrecht
-    ];
+    try {
+        const resolution = voxelGrid.resolution;
+        // 12 Kanten pro Würfel, je 2 Endpunkte, je 3 Koordinaten
+        const cubeEdges = [
+            [0, 0, 0], [1, 0, 0], [1, 0, 0], [1, 1, 0], [1, 1, 0], [0, 1, 0], [0, 1, 0], [0, 0, 0], // unten
+            [0, 0, 1], [1, 0, 1], [1, 0, 1], [1, 1, 1], [1, 1, 1], [0, 1, 1], [0, 1, 1], [0, 0, 1], // oben
+            [0, 0, 0], [0, 0, 1], [1, 0, 0], [1, 0, 1], [1, 1, 0], [1, 1, 1], [0, 1, 0], [0, 1, 1]  // senkrecht
+        ];
 
-    let cellsToDraw = voxelGrid.cells;
-    let truncated = false;
-    if (cellsToDraw.size > MAX_VISUALIZED_VOXELS) {
-        const limited = new Set();
-        let i = 0;
+        let cellsToDraw = voxelGrid.cells;
+        let truncated = false;
+        if (cellsToDraw.size > MAX_VISUALIZED_VOXELS) {
+            const limited = new Set();
+            let i = 0;
+            for (const key of cellsToDraw) {
+                if (i++ >= MAX_VISUALIZED_VOXELS) break;
+                limited.add(key);
+            }
+            cellsToDraw = limited;
+            truncated = true;
+        }
+
+        const positions = new Float32Array(cellsToDraw.size * cubeEdges.length * 3);
+        let o = 0;
         for (const key of cellsToDraw) {
-            if (i++ >= MAX_VISUALIZED_VOXELS) break;
-            limited.add(key);
+            const [vx, vy, vz] = key.split('_').map(Number);
+            const bx = vx * resolution, by = vy * resolution, bz = vz * resolution;
+            for (const [dx, dy, dz] of cubeEdges) {
+                positions[o++] = bx + dx * resolution;
+                positions[o++] = by + dy * resolution;
+                positions[o++] = bz + dz * resolution;
+            }
         }
-        cellsToDraw = limited;
-        truncated = true;
-    }
 
-    const positions = new Float32Array(cellsToDraw.size * cubeEdges.length * 3);
-    let o = 0;
-    for (const key of cellsToDraw) {
-        const [vx, vy, vz] = key.split('_').map(Number);
-        const bx = vx * resolution, by = vy * resolution, bz = vz * resolution;
-        for (const [dx, dy, dz] of cubeEdges) {
-            positions[o++] = bx + dx * resolution;
-            positions[o++] = by + dy * resolution;
-            positions[o++] = bz + dz * resolution;
+        const mesh = new pc.Mesh(app.graphicsDevice);
+        mesh.setPositions(positions);
+        mesh.update(pc.PRIMITIVE_LINES);
+
+        const material = new pc.BasicMaterial();
+        material.color.set(0.2, 1.0, 0.4);
+        material.update();
+
+        const meshInstance = new pc.MeshInstance(mesh, material);
+        voxelVisEntity = new pc.Entity('VoxelVisualization');
+        voxelVisEntity.addComponent('render', { meshInstances: [meshInstance] });
+        app.root.addChild(voxelVisEntity);
+        voxelVisEntity.enabled = voxelVisibleCheckbox.checked;
+
+        console.log('[VoxelVis] Gitter erzeugt:', cellsToDraw.size, 'Zellen,', positions.length / 3, 'Linienpunkte, enabled =', voxelVisEntity.enabled);
+
+        if (truncated) {
+            setStatus(statusEl.textContent + ` (Voxel-Anzeige auf ${MAX_VISUALIZED_VOXELS.toLocaleString('de-DE')} von ${voxelGrid.cells.size.toLocaleString('de-DE')} Zellen begrenzt.)`);
         }
-    }
-
-    const mesh = new pc.Mesh(app.graphicsDevice);
-    mesh.setPositions(positions);
-    mesh.update(pc.PRIMITIVE_LINES);
-
-    const material = new pc.BasicMaterial();
-    material.color = new pc.Color(0.2, 1.0, 0.4);
-    material.update();
-
-    const meshInstance = new pc.MeshInstance(mesh, material);
-    voxelVisEntity = new pc.Entity('VoxelVisualization');
-    voxelVisEntity.addComponent('render', { meshInstances: [meshInstance] });
-    app.root.addChild(voxelVisEntity);
-    voxelVisEntity.enabled = voxelVisibleCheckbox.checked;
-
-    if (truncated) {
-        setStatus(statusEl.textContent + ` (Voxel-Anzeige auf ${MAX_VISUALIZED_VOXELS.toLocaleString('de-DE')} von ${voxelGrid.cells.size.toLocaleString('de-DE')} Zellen begrenzt.)`);
+    } catch (err) {
+        console.error('[VoxelVis] Fehler beim Aufbauen der Voxel-Visualisierung:', err);
+        setStatus(`Fehler bei der Voxel-Anzeige: ${err.message}`);
     }
 }
 

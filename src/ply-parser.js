@@ -95,6 +95,14 @@ export function parsePly(buffer) {
         throw new Error('PLY enthält kein "vertex"-Element – vermutlich keine Splat-Datei.');
     }
 
+    // SuperSplats "Compressed Ply" hat ein zusätzliches "chunk"-Element und
+    // im vertex-Element bit-gepackte uint-Properties statt x/y/z-Floats.
+    const chunkEl = elements.find(e => e.name === 'chunk');
+    const hasPackedPosition = vertexEl.properties.some(p => p.name === 'packed_position');
+    if (chunkEl && hasPackedPosition) {
+        return parseCompressedPly(buffer, format, chunkEl, vertexEl, dataOffset);
+    }
+
     const props = vertexEl.properties;
     const xIdx = props.findIndex(p => p.name === 'x');
     const yIdx = props.findIndex(p => p.name === 'y');
@@ -148,4 +156,74 @@ export function parsePly(buffer) {
     }
 
     return { count, positions, opacities };
+}
+
+// Entpackt 3 quantisierte Werte (11/10/11 Bit) aus einem 32-Bit-Integer,
+// je normiert auf 0..1. Standard-Bitlayout von SuperSplats Compressed Ply
+// für packed_position und packed_scale.
+function unpack111011(bits) {
+    return [
+        (bits >>> 21) / 2047,          // 11 Bit
+        ((bits >>> 11) & 0x3FF) / 1023, // 10 Bit
+        (bits & 0x7FF) / 2047           // 11 Bit
+    ];
+}
+
+// SuperSplat "Compressed Ply": Splats sind in Chunks von je 256 organisiert.
+// Jeder Chunk hat eigene min/max-Bounds (Position, Scale, ggf. Farbe); jeder
+// Splat speichert nur einen bit-gepackten, auf den Chunk normierten Wert
+// (packed_position: 11-10-11 Bit). Dequantisierung: min + normiert*(max-min).
+// Details: https://blog.playcanvas.com/compressing-gaussian-splats/
+function parseCompressedPly(buffer, format, chunkEl, vertexEl, dataOffset) {
+    if (format !== 'binary_little_endian') {
+        throw new Error('Komprimiertes PLY wird nur im binary_little_endian-Format unterstützt.');
+    }
+    const CHUNK_SIZE = 256;
+
+    // Chunk-Element: alle Properties sind floats (min/max Position, Scale, ggf. Farbe)
+    const chunkPropNames = chunkEl.properties.map(p => p.name);
+    const chunkStride = chunkEl.properties.length * 4;
+    const chunkCount = chunkEl.count;
+
+    const view = new DataView(buffer, dataOffset);
+    const chunks = new Array(chunkCount);
+    let offset = 0;
+    for (let c = 0; c < chunkCount; c++) {
+        const vals = {};
+        for (let p = 0; p < chunkPropNames.length; p++) {
+            vals[chunkPropNames[p]] = view.getFloat32(offset + p * 4, true);
+        }
+        chunks[c] = vals;
+        offset += chunkStride;
+    }
+    const requiredChunkProps = ['min_x', 'min_y', 'min_z', 'max_x', 'max_y', 'max_z'];
+    for (const name of requiredChunkProps) {
+        if (!(name in chunks[0])) {
+            throw new Error(`Komprimiertes PLY: Chunk-Element hat keine "${name}"-Property.`);
+        }
+    }
+
+    // Vertex-Element: uint-Properties (packed_position, ...), fest 4 Byte je Property
+    const vertexPropNames = vertexEl.properties.map(p => p.name);
+    const posIdx = vertexPropNames.indexOf('packed_position');
+    const vertexStride = vertexEl.properties.length * 4;
+    const count = vertexEl.count;
+    const positions = new Float32Array(count * 3);
+    const vertexDataStart = dataOffset + offset;
+    const vertexView = new DataView(buffer, vertexDataStart);
+
+    for (let i = 0; i < count; i++) {
+        const base = i * vertexStride + posIdx * 4;
+        const packed = vertexView.getUint32(base, true);
+        const [nx, ny, nz] = unpack111011(packed);
+        const chunk = chunks[Math.floor(i / CHUNK_SIZE)];
+        positions[i * 3 + 0] = chunk.min_x + nx * (chunk.max_x - chunk.min_x);
+        positions[i * 3 + 1] = chunk.min_y + ny * (chunk.max_y - chunk.min_y);
+        positions[i * 3 + 2] = chunk.min_z + nz * (chunk.max_z - chunk.min_z);
+    }
+
+    // Opacity steckt im gepackten packed_color-Wert (nicht separat als Float
+    // dekodiert) – für die Voxel-Kollision hier bewusst nicht ausgewertet,
+    // d. h. bei komprimierten PLYs wird aktuell nicht nach Opacity gefiltert.
+    return { count, positions, opacities: null };
 }
