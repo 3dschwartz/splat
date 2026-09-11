@@ -11,6 +11,9 @@ const spawnXInput = document.getElementById('spawn-x');
 const spawnYInput = document.getElementById('spawn-y');
 const spawnZInput = document.getElementById('spawn-z');
 const voxelVisibleCheckbox = document.getElementById('voxel-visible');
+const voxelOffsetXInput = document.getElementById('voxel-offset-x');
+const voxelOffsetYInput = document.getElementById('voxel-offset-y');
+const voxelOffsetZInput = document.getElementById('voxel-offset-z');
 
 function setStatus(text) {
     statusEl.textContent = text;
@@ -57,9 +60,13 @@ function rebuildTeleportController() {
 }
 
 // PlayCanvas transformiert PLY-Splats beim Laden intern um 180° um die
-// Z-Achse (Wechsel von der PLY-Quellkonvention in engine-eigenes Y-up).
-// Unser eigener PLY-Parser liest die ROHEN Koordinaten – ohne diese
-// Transformation würde das Voxelgrid nicht zur gerenderten Szene passen.
+// Z-Achse (offiziell dokumentierte PLY-Koordinatenkonvention, siehe
+// splat-transform Transform.PLY). Unser eigener PLY-Parser liest die
+// ROHEN Koordinaten – ohne diese Transformation würde das Voxelgrid nicht
+// zur gerenderten Szene passen. Falls trotzdem ein sichtbarer Versatz
+// bleibt (z. B. weil die Engine intern um einen anderen Punkt als den
+// Ursprung zentriert), lässt sich das über die "Voxel-Versatz"-Felder in
+// der UI manuell ausgleichen.
 function toEngineSpace(x, y, z) {
     return [-x, -y, z];
 }
@@ -73,14 +80,17 @@ function toFlippedSpace([x, y, z]) {
 
 function buildVoxelGrid(resolution) {
     if (!rawPositions) return null;
+    const ox = parseFloat(voxelOffsetXInput.value) || 0;
+    const oy = parseFloat(voxelOffsetYInput.value) || 0;
+    const oz = parseFloat(voxelOffsetZInput.value) || 0;
     const count = rawPositions.length / 3;
     const positions = new Float32Array(rawPositions.length);
     for (let i = 0; i < count; i++) {
         let p = toEngineSpace(rawPositions[i * 3], rawPositions[i * 3 + 1], rawPositions[i * 3 + 2]);
         if (isFlipped) p = toFlippedSpace(p);
-        positions[i * 3] = p[0];
-        positions[i * 3 + 1] = p[1];
-        positions[i * 3 + 2] = p[2];
+        positions[i * 3] = p[0] + ox;
+        positions[i * 3 + 1] = p[1] + oy;
+        positions[i * 3 + 2] = p[2] + oz;
     }
     return new VoxelGrid(positions, rawOpacities, resolution);
 }
@@ -194,6 +204,12 @@ flipButton.addEventListener('click', () => {
 
 resolutionInput.addEventListener('change', () => {
     if (rawPositions) rebuildVoxelsAndCollision();
+});
+
+[voxelOffsetXInput, voxelOffsetYInput, voxelOffsetZInput].forEach(input => {
+    input.addEventListener('input', () => {
+        if (rawPositions) rebuildVoxelsAndCollision();
+    });
 });
 
 [spawnXInput, spawnYInput, spawnZInput].forEach(input => {
