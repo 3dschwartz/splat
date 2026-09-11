@@ -119,10 +119,19 @@ export class TeleportController {
                 if (!hitZ || hitZ.distance > distZ - skin) pos.z += move.z;
             }
 
-            // Boden-Andockung: kurzer Strahl nach unten
+            // Boden-Andockung: kurzer Strahl nach unten, aber auf eine
+            // maximale Schritthöhe pro Frame begrenzt. Ohne dieses Limit
+            // kann direkt neben einer Wand die WANDOBERKANTE als "Boden"
+            // erkannt werden (der Strahl startet ja nur 0.3m über den Füßen)
+            // und die Kamera springt schlagartig ~1m nach oben.
+            const MAX_STEP = 0.4; // Meter pro Frame
             const down = new pc.Vec3(0, -1, 0);
             const floorHit = this._hit(new pc.Vec3(pos.x, pos.y + 0.3, pos.z), down, 1.0);
-            if (floorHit) pos.y = floorHit.point.y + this.eyeHeight;
+            if (floorHit) {
+                const desiredY = floorHit.point.y + this.eyeHeight;
+                const delta = desiredY - pos.y;
+                pos.y += Math.max(-MAX_STEP, Math.min(MAX_STEP, delta));
+            }
 
             this.camera.setPosition(pos);
         } else {

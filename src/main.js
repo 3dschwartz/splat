@@ -175,7 +175,7 @@ voxelVisibleCheckbox.addEventListener('change', () => {
     }
 });
 
-function applyFlip() {
+function rebuildVoxelsAndCollision() {
     if (splatEntity) {
         splatEntity.setEulerAngles(isFlipped ? 180 : 0, 0, 0);
     }
@@ -189,7 +189,11 @@ function applyFlip() {
 
 flipButton.addEventListener('click', () => {
     isFlipped = !isFlipped;
-    applyFlip();
+    rebuildVoxelsAndCollision();
+});
+
+resolutionInput.addEventListener('change', () => {
+    if (rawPositions) rebuildVoxelsAndCollision();
 });
 
 [spawnXInput, spawnYInput, spawnZInput].forEach(input => {
