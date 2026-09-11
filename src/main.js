@@ -141,8 +141,13 @@ function buildVoxelVisualization() {
         mesh.setPositions(positions);
         mesh.update(pc.PRIMITIVE_LINES);
 
-        const material = new pc.BasicMaterial();
-        material.color.set(0.2, 1.0, 0.4);
+        const material = new pc.StandardMaterial();
+        // BasicMaterial gibt es in Engine V2 nicht mehr; laut PlayCanvas-
+        // Migrationsguide ersetzt man es durch StandardMaterial mit
+        // gesetzter Emissive-Farbe + deaktivierter Beleuchtung/Diffuse.
+        material.useLighting = false;
+        material.diffuse.set(0, 0, 0);
+        material.emissive.set(0.2, 1.0, 0.4);
         material.update();
 
         const meshInstance = new pc.MeshInstance(mesh, material);
