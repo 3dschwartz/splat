@@ -61,7 +61,12 @@
   <div id="status">Initialisiere …</div>
   <div id="controls">
     <label>Voxelgröße (m)
-      <input id="voxel-resolution" type="number" step="0.01" min="0.02" value="0.15">
+      <input id="voxel-resolution" type="number" step="0.01" min="0.02" value="0.05">
+    </label>
+    <label>Voxel-Versatz X/Y/Z (m)
+      <input id="voxel-offset-x" type="number" step="0.01" value="0" style="width:52px">
+      <input id="voxel-offset-y" type="number" step="0.01" value="0" style="width:52px">
+      <input id="voxel-offset-z" type="number" step="0.01" value="0" style="width:52px">
     </label>
     <label>Spawn X/Y/Z (m)
       <input id="spawn-x" type="number" step="0.1" value="0" style="width:48px">
@@ -84,8 +89,9 @@
   Ziehen mit gedrückter Maustaste = Umschauen · WASD/Pfeiltasten = Gehen (kollisionsgeprüft).<br>
   Spawn X/Y/Z = fester Startpunkt der Kamera beim Laden. Verschiebe deine Splats vorher (z. B. in SuperSplat)
   so, dass dein gewünschter Raummittelpunkt genau auf diesen Punkt fällt.<br>
-  "Voxel anzeigen" blendet die belegten Kollisionszellen als grünes Gitter ein (wie die Voxel-Vorschau bei SuperSplat) –
-  rein zur Kontrolle, beeinflusst die Kollision selbst nicht.
+  "Voxel anzeigen" blendet die belegten Kollisionszellen als grünes Gitter ein (wie die Voxel-Vorschau bei SuperSplat).
+  Liegt das Gitter sichtbar verschoben zum Splat: "Voxel-Versatz" so lange anpassen, bis beides deckungsgleich ist
+  (wirkt sich auch direkt auf die Kollision aus, nicht nur auf die Anzeige).
 </div>
 
 <script type="module" src="./src/main.js"></script>
